@@ -5,7 +5,7 @@ import java.io.File
 import java.util.jar.Attributes
 import net.lag.configgy.Configgy
 
-class StandardProject(info: ProjectInfo) extends DefaultProject(info) {
+class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject {
   override def dependencyPath = "lib"
   override def disableCrossPaths = true
 
@@ -82,6 +82,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) {
     .map(_.getName).mkString(" ")
   )
 
-  def distName = "%s-%s.zip".format(name, version)
+  def distName = "%s-%s.zip".format(name, currentRevision.map(_.substring(0, 8)).getOrElse(version))
   lazy val zip = zipTask(distPath, "dist", distName) dependsOn (`package`) describedAs("Zips up the project.")
 }
