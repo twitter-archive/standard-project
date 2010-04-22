@@ -2,6 +2,7 @@ package com.twitter.sbt
 
 import _root_.sbt._
 import java.io.File
+import java.util.jar.Attributes
 import net.lag.configgy.Configgy
 
 class StandardProject(info: ProjectInfo) extends DefaultProject(info) {
@@ -38,6 +39,8 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) {
   log.info("Standard project rules loaded (2010-04-20).")
 
   // publishing stuff
+  override def managedStyle = ManagedStyle.Maven
+
   def distPath = {
     ((outputPath ##) / defaultJarName) +++
     mainResources +++
@@ -49,6 +52,29 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) {
     descendents(info.projectPath / "lib" ##, "*.jar") +++
     descendents(managedDependencyRootPath / "compile" ##, "*.jar")
   }
+
+  def packageWithDepsTask = {
+    def dependantJars      = {
+      descendents(managedDependencyRootPath / "compile" ##, "*.jar") +++
+      (info.projectPath / "lib" ##) ** "*.jar"
+    }
+
+    val targetDepsPath = outputPath / "lib-deps"
+    val cleanCopiedLibsTask = cleanTask(targetDepsPath)
+    val copyLibsTask = copyTask(dependantJars, targetDepsPath / "lib") dependsOn cleanCopiedLibsTask
+
+    val depsPath =
+      ((outputPath ##) / defaultJarName) +++
+      mainDependencies.scalaJars +++
+      ((targetDepsPath ##) ** "*.jar")
+
+    val classPath = Some(super.manifestClassPath.getOrElse("") + (depsPath.getRelativePaths.mkString(" ")))
+    val packageOptions =
+      getMainClass(false).map(MainClass(_)).toList :::
+      classPath.map(cp => ManifestAttributes((Attributes.Name.CLASS_PATH, cp))).toList
+    packageTask(packagePaths +++ ((targetDepsPath ##) ** "*.jar"), jarPath, packageOptions).dependsOn(testAction) dependsOn(copyLibsTask)
+  }
+  lazy val packageWithDeps = packageWithDepsTask
 
   override def manifestClassPath = Some(
     distPath.getFiles
