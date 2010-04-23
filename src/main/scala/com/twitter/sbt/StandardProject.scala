@@ -3,21 +3,18 @@ package com.twitter.sbt
 import _root_.sbt._
 import java.io.File
 import java.util.jar.Attributes
-import net.lag.configgy.Configgy
+import scala.collection.jcl
+
 
 class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject {
-  override def dependencyPath = "lib"
+  override def dependencyPath = "libs"
+  override def managedDependencyPath = "target" / "lib_managed" ##
   override def disableCrossPaths = true
 
-  // configgy
-  val configFile = (Path.userHome / ".sbtrc").asFile
-  if (configFile.exists()) {
-    Configgy.configure(configFile.getAbsolutePath())
-  }
-  val config = Configgy.config
+  val env = jcl.Map(System.getenv())
 
   // override ivy cache
-  override def ivyCacheDirectory = config.getString("ivy.cache").map { cacheDir =>
+  override def ivyCacheDirectory = env.get("SBT_CACHE").map { cacheDir =>
     Path.fromFile(new File(cacheDir))
   }
 
@@ -36,8 +33,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 
   override def packageAction = super.packageAction dependsOn(testAction)
 
-  log.info("Standard project rules loaded (2010-04-20).")
-
   // publishing stuff
   override def managedStyle = ManagedStyle.Maven
 
@@ -54,14 +49,14 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   }
 
   def packageWithDepsTask = {
-    def dependantJars      = {
+    def dependantJars = {
       descendents(managedDependencyRootPath / "compile" ##, "*.jar") +++
-      (info.projectPath / "lib" ##) ** "*.jar"
+      dependencyPath ** "*.jar"
     }
 
     val targetDepsPath = outputPath / "lib-deps"
     val cleanCopiedLibsTask = cleanTask(targetDepsPath)
-    val copyLibsTask = copyTask(dependantJars, targetDepsPath / "lib") dependsOn cleanCopiedLibsTask
+    val copyLibsTask = copyTask(dependantJars, targetDepsPath / "libs") dependsOn cleanCopiedLibsTask
 
     val depsPath =
       ((outputPath ##) / defaultJarName) +++
@@ -84,4 +79,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 
   def distName = "%s-%s.zip".format(name, currentRevision.map(_.substring(0, 8)).getOrElse(version))
   lazy val zip = zipTask(distPath, "dist", distName) dependsOn (`package`) describedAs("Zips up the project.")
+
+  log.info("Standard project rules loaded (2010-04-20).")
 }

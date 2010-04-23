@@ -26,4 +26,3 @@ trait SourceControlledProject extends Project {
     adapter.currentRevision
   }
 }
-
