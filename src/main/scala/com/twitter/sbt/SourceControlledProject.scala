@@ -12,7 +12,7 @@ trait ScmAdapter {
 object ScmAdapters {
   val Git = new ScmAdapter {
     def isARepository = ("git status" ! NullLogger) == 0
-    def currentRevision = "git rev-parse HEAD" !! NullLogger
+    def currentRevision = ("git rev-parse HEAD" !! NullLogger).trim
   }
 }
 
