@@ -40,6 +40,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   override def packageAction = super.packageAction dependsOn(testAction)
 
   // publishing stuff
+  system("ivy.checksums")(StringFormat).update("sha1,md5")
   val distResolver = Resolver.file("dist", ("dist" / "repo").asFile)
   val publishConfig = new DefaultPublishConfiguration("dist", "release", true)
   lazy val deliverDist = deliverTask(deliverIvyModule, publishConfig, true) dependsOn(`package`)
