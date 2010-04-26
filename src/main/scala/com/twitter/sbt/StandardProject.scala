@@ -40,9 +40,14 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   override def packageAction = super.packageAction dependsOn(testAction)
 
   // publishing stuff
+  val distResolver = Resolver.file("dist", ("dist" / "repo").asFile)
+  val publishConfig = new DefaultPublishConfiguration("dist", "release", true)
+  lazy val deliverDist = deliverTask(deliverIvyModule, publishConfig, true) dependsOn(`package`)
+  lazy val publishDist = publishTask(publishIvyModule, publishConfig) dependsOn(deliverDist)
+
   override def managedStyle = ManagedStyle.Maven
 
-  def dependantJars      = {
+  def dependantJars = {
     descendents(managedDependencyRootPath / "compile" ##, "*.jar") +++
     (info.projectPath / "lib" ##) ** "*.jar"
   }
@@ -76,7 +81,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 
   def distName = "%s-%s.zip".format(name, currentRevision.map(_.substring(0, 8)).getOrElse(version))
   def distPaths = (stagingPath ##) ** "*" +++ ((outputPath ##) / defaultJarName)
-  lazy val dist = zipTask(distPaths, "dist", distName) dependsOn(stageForDistTask) dependsOn(writeBuildProperties) dependsOn(cleanStagingTask) dependsOn(packageAction)
+  lazy val distAction = zipTask(distPaths, "dist", distName) dependsOn(stageForDistTask) dependsOn(writeBuildProperties) dependsOn(cleanStagingTask) dependsOn(packageAction)
 
   def packageWithDepsTask = {
     val depsPath =
