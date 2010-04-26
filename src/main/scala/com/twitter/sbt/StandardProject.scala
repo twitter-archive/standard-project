@@ -72,16 +72,33 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     buildProperties.setProperty("version", version.toString)
     buildProperties.setProperty("build_name", timestamp)
     currentRevision.foreach(buildProperties.setProperty("build_revision", _))
-    val fileWriter = new FileWriter(buildFile)
-    buildProperties.store(fileWriter, "")
-    fileWriter.close()
-    None
+    try {
+      val fileWriter = new FileWriter(buildFile)
+      buildProperties.store(fileWriter, "")
+      fileWriter.close()
+      None
+    } catch {
+      case e => Some(e.toString())
+    }
   }
 
   lazy val writeBuildProperties = writeBuildPropertiesTask
 
   def distName = "%s-%s.zip".format(name, currentRevision.map(_.substring(0, 8)).getOrElse(version))
   def distPaths = (stagingPath ##) ** "*" +++ ((outputPath ##) / defaultJarName)
+
+  def deps = {
+    ((outputPath ##) / defaultJarName) +++
+    mainDependencies.scalaJars +++
+    ((stagingPath ##) ** "*.jar")
+  }
+  def depsClassPath = deps.getRelativePaths.mkString(" ")
+
+  override def packageOptions = {
+    getMainClass(false).map(MainClass(_)).toList :::
+    deps.getRelativePaths.mkString(" ").map(cp => ManifestAttributes((Attributes.Name.CLASS_PATH, cp))).toList
+  }
+
   lazy val distAction = zipTask(distPaths, "dist", distName) dependsOn(stageForDistTask) dependsOn(writeBuildProperties) dependsOn(cleanStagingTask) dependsOn(packageAction)
 
   def packageWithDepsTask = {
