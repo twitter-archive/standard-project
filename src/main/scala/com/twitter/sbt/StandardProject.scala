@@ -5,7 +5,7 @@ import java.io.{FileWriter, File}
 import java.util.{Date, Properties}
 import java.util.jar.Attributes
 import java.text.SimpleDateFormat
-import net.lag.configgy.Configgy
+import scala.collection.jcl
 
 
 class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject {
@@ -28,7 +28,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val twitterRepository  = "twitter.com" at "http://www.lag.net/nest/"
   val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
   val scalaToolsReleases = "scala-tools.org" at "http://scala-tools.org/repo-releases/"
-  val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/"
+  val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/"
   val reucon             = "reucon" at "http://maven.reucon.com/public/"
   val oauthDotNet        = "oauth.net" at "http://oauth.googlecode.com/svn/code/maven"
   val javaDotNet         = "download.java.net" at "http://download.java.net/maven/2/"
