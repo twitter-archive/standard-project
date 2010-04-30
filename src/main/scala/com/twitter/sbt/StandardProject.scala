@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat
 import scala.collection.jcl
 
 
+
 class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject {
   override def dependencyPath = "libs"
   override def managedDependencyPath = "target" / "lib_managed" ##
@@ -87,20 +88,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def distPaths = (stagingPath ##) ** "*" +++ ((outputPath ##) / defaultJarName)
   lazy val distAction = zipTask(distPaths, "dist", distZipName) dependsOn(stageForDistTask) dependsOn(writeBuildProperties) dependsOn(cleanStagingTask) dependsOn(packageAction)
 
-  def packageWithDepsTask = {
-    val depsPath =
-      ((outputPath ##) / defaultJarName) +++
-      mainDependencies.scalaJars +++
-      ((stagingPath ##) ** "*.jar")
-
-    val classPath = Some(super.manifestClassPath.getOrElse("") + (depsPath.getRelativePaths.mkString(" ")))
-    val packageOptions =
-      getMainClass(false).map(MainClass(_)).toList :::
-      classPath.map(cp => ManifestAttributes((Attributes.Name.CLASS_PATH, cp))).toList
-    packageTask(packagePaths +++ ((stagingPath ##) ** "*.jar"), jarPath, packageOptions).dependsOn(testAction) dependsOn(stageLibsForDistTask)
-  }
-
-  lazy val packageWithDeps = packageWithDepsTask
   
   
   
@@ -112,8 +99,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def dependentJarNames = dependentJars.getFiles.map(_.getName).filter(_.endsWith(".jar"))
   override def manifestClassPath = Some(dependentJarNames.map { "libs/" + _ }.mkString(" "))
 
-  def jarName = name + "-" + version
-  def distName = if (releaseBuild) jarName else name
+  def distName = if (releaseBuild) (name + "-" + version) else name
   def distPath = "dist" / distName ##
 
   def configPath = "config" ##
@@ -134,14 +120,14 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
    */
   def packageDistTask = task {
     distPath.asFile.mkdirs()
-    FileUtilities.copyFlat(List(jarPath), distPath, log)
     (distPath / "libs").asFile.mkdirs()
-    FileUtilities.copyFlat(dependentJars.get, distPath / "libs", log)
     configOutputPath.asFile.mkdirs()
-    FileUtilities.copy((configPath ** "*").get, configOutputPath, log)
-    FileUtilities.copy(((outputPath ##) ** "*.pom").get, distPath, log)
-    // scripts
-    None
+
+    FileUtilities.copyFlat(List(jarPath), distPath, log).left.toOption orElse
+      FileUtilities.copyFlat(dependentJars.get, distPath / "libs", log).left.toOption orElse
+      FileUtilities.copy((configPath ***).get, configOutputPath, log).left.toOption orElse
+      FileUtilities.copy(((outputPath ##) ** "*.pom").get, distPath, log).left.toOption orElse
+      FileUtilities.zip((("dist" ##) / distName).get, "dist" / distZipName, true, log).left.toOption
   }
 
   lazy val packageDist = packageDistTask dependsOn(`package`, makePom)
