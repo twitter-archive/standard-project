@@ -10,7 +10,6 @@ import scala.collection.jcl
 
 class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject {
   override def dependencyPath = "libs"
-  override def managedDependencyPath = "target" / "lib_managed" ##
   override def disableCrossPaths = true
   def timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date)
 
