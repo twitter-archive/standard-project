@@ -25,7 +25,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 
   // maven repositories
   val ibiblioRepository  = "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/"
-  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
+//  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
   val lagRepository      = "lag.net" at "http://www.lag.net/repo/"
   val twitterRepository  = "twitter.com" at "http://www.lag.net/nest/"
   val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
@@ -81,6 +81,26 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     "%s-%s.zip".format(name, if (releaseBuild) version else revName)
   }
 
+  // thrift generation.
+  def compileThriftAction(lang: String) = task {
+    import Process._
+    outputPath.asFile.mkdirs()
+    thriftSources.getPaths.map { path =>
+      execTask { "thrift --gen %s -o %s %s".format(lang, outputPath.absolutePath, path) }
+    }.reduceLeft { _ && _ }.run
+  }
+
+  def thriftSources = (mainSourcePath / "thrift" ##) ** "*.thrift"
+  def thriftJavaPath = outputPath / "gen-java"
+  def thriftRubyPath = outputPath / "gen-rb"
+
+  lazy val cleanThrift = (cleanTask(thriftJavaPath) && cleanTask(thriftRubyPath)) describedAs("Clean thrift generated folder")
+  lazy val compileThriftJava = compileThriftAction("java") describedAs("Compile thrift into java")
+  lazy val compileThriftRuby = compileThriftAction("rb") describedAs("Compile thrift into ruby")
+  override def compileOrder = CompileOrder.JavaThenScala
+  override def mainSourceRoots = super.mainSourceRoots +++ (outputPath / "gen-java" ##)
+
+  // copy scripts.
   val CopyScriptsDescription = "Copies scripts into the dist folder."
   val copyScripts = task {
     val filters = Map(
@@ -121,10 +141,11 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val PackageDistDescription = "Creates a deployable zip file with dependencies, config, and scripts."
   lazy val packageDist = packageDistTask dependsOn(`package`, makePom, copyScripts) describedAs PackageDistDescription
 
+  override def compileAction = super.compileAction dependsOn(compileThriftJava, compileThriftRuby)
   override def packageAction = super.packageAction dependsOn(testAction, writeBuildProperties)
 
   val cleanDist = cleanTask("dist" ##)
-  override def cleanAction = super.cleanAction dependsOn(cleanDist)
+  override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
   log.info("Standard project rules loaded (2010-04-29).")
 }
