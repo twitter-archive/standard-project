@@ -26,7 +26,7 @@ trait SubversionRepository { self: DefaultProject =>
       val resolver = new SvnResolver()
       resolver.setName("svn")
       resolver.setRepositoryRoot(repo)
-      resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact].[ext]"))
+      resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"))
 
       val username = prefs.getProperty("username")
       if (username ne null) {
@@ -57,6 +57,10 @@ trait SubversionRepository { self: DefaultProject =>
         Some("Can't publish to subversion without a repo!")
       case Some(resolver) =>
         module.withModule { (ivy, md, default) => ivy.getSettings().addResolver(resolver) }
+        val conf = new DefaultPublishConfiguration("svn", "release", true)
+//        deliverTask(deliverIvyModule, conf, true)
+//        publishTask(deliverIvyModule, conf)
+//        IvyActions.deliver(module, "release", )
         IvyActions.publish(module, resolver.getName(), sourcePatterns, None, None)
         None
     }
