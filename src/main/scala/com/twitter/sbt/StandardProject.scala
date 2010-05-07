@@ -85,9 +85,10 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def compileThriftAction(lang: String) = task {
     import Process._
     outputPath.asFile.mkdirs()
-    thriftSources.getPaths.map { path =>
+    val tasks = thriftSources.getPaths.map { path =>
       execTask { "thrift --gen %s -o %s %s".format(lang, outputPath.absolutePath, path) }
-    }.reduceLeft { _ && _ }.run
+    }
+    if (tasks.isEmpty) None else tasks.reduceLeft { _ && _ }.run
   }
 
   def thriftSources = (mainSourcePath / "thrift" ##) ** "*.thrift"
@@ -147,5 +148,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##)
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules loaded (2010-04-29).")
+  log.info("Standard project rules 0.3 loaded (2010-05-04).")
 }
