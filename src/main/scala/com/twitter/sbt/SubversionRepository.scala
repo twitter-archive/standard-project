@@ -9,7 +9,7 @@ import _root_.sbt._
 /**
  * Semi-hacky way to publish to a subversion-based maven repository, using ivy-svn.
  */
-trait SubversionRepository { self: DefaultProject =>
+trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
   private val prefs = new Properties()
   private val prefsFilename = System.getProperty("user.home") + "/.svnrepo"
 
@@ -20,7 +20,7 @@ trait SubversionRepository { self: DefaultProject =>
       log.warn("No .svnrepo file; no svn repo will be configured.")
   }
 
-  def subversionResolver = {
+  lazy val subversionResolver = {
     val repo = prefs.getProperty("repo")
     if (repo ne null) {
       val resolver = new SvnResolver()
@@ -42,22 +42,20 @@ trait SubversionRepository { self: DefaultProject =>
     }
   }
 
-  def publishSvnTask = ivyTask {
+  override def ivySbt: IvySbt = {
+    val i = super.ivySbt
+    subversionResolver.foreach { resolver =>
+      i.withIvy { _.getSettings().addResolver(resolver) }
+    }
+    i
+  }
 
+  override def publishConfiguration: DefaultPublishConfiguration = {
     subversionResolver match {
       case None =>
-        Some("Can't publish to subversion without a repo!")
+        super.publishConfiguration
       case Some(resolver) =>
-        val module = publishIvyModule
-        val conf = new DefaultPublishConfiguration(resolver.getName(), "release", true)
-        module.withModule { (ivy, md, default) => ivy.getSettings().addResolver(resolver) }
-        IvyActions.publish(module, resolver.getName(), conf.srcArtifactPatterns, None, None)
-        None
+        new DefaultPublishConfiguration(resolver.getName(), "release", true)
     }
   }
-
-  def publishSvnAction = {
-    publishSvnTask dependsOn(deliverLocal, makePom)
-  }
-  lazy val publishSvn = publishSvnAction
 }
