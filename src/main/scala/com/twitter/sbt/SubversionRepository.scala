@@ -43,25 +43,15 @@ trait SubversionRepository { self: DefaultProject =>
   }
 
   def publishSvnTask = ivyTask {
-    val module = publishIvyModule
-    val sourcePatterns: Iterable[String] = {
-      val pathPatterns =
-              (outputPath / "[artifact]-[revision]-[type](-[classifier]).[ext]") ::
-              (outputPath / "[artifact]-[revision](-[classifier]).[ext]") ::
-              Nil
-      pathPatterns.map(_.relativePath)
-    }
 
     subversionResolver match {
       case None =>
         Some("Can't publish to subversion without a repo!")
       case Some(resolver) =>
+        val module = publishIvyModule
+        val conf = new DefaultPublishConfiguration(resolver.getName(), "release", true)
         module.withModule { (ivy, md, default) => ivy.getSettings().addResolver(resolver) }
-        val conf = new DefaultPublishConfiguration("svn", "release", true)
-//        deliverTask(deliverIvyModule, conf, true)
-//        publishTask(deliverIvyModule, conf)
-//        IvyActions.deliver(module, "release", )
-        IvyActions.publish(module, resolver.getName(), sourcePatterns, None, None)
+        IvyActions.publish(module, resolver.getName(), conf.srcArtifactPatterns, None, None)
         None
     }
   }
