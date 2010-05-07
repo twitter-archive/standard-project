@@ -36,6 +36,13 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val javaDotNet         = "download.java.net" at "http://download.java.net/maven/2/"
   val atlassian          = "atlassian" at "https://m2proxy.atlassian.com/repository/public/"
 
+  val twitterPrivateRepo = if (env.get("SBT_TWITTER").isDefined) {
+    val twitterPrivateRepoFormat = "[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"
+    Resolver.url("twitter-private") artifacts("http://binaries.local.twitter.com/maven/" + twitterPrivateRepoFormat)
+  } else {
+    Resolver.url("twitter-private") artifacts("file:/tmp/[artifact]-[revision].[ext]")
+  }
+
   // make a build.properties file and sneak it into the packaged jar.
   def buildPackage = organization + "." + name
   def packageResourcesPath = buildPackage.split("\\.").foldLeft(mainResourcesOutputPath ##) { _ / _ }
@@ -148,5 +155,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##)
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.4 loaded (2010-05-06).")
+  log.info("Standard project rules 0.5 loaded (2010-05-06).")
 }
