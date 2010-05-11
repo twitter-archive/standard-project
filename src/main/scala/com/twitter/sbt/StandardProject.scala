@@ -155,5 +155,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##)
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.5 loaded (2010-05-06).")
+  log.info("Standard project rules 0.5.5 loaded (2010-05-11).")
 }
