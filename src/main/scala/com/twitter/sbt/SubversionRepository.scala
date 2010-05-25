@@ -33,11 +33,29 @@ trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
         resolver.setUserName(username)
       }
       val password = prefs.getProperty("password")
-      if (password ne null) {
+      if (password eq null) {
+        // Try to prompt the user for a password.
+        val console = System.console
+        if (console ne null) {
+          // This is super janky -- it seems that sbt hoses the
+          // console in a way so that it isn't line-buffered anymore,
+          // or for some other reason causes Console.readPassword to
+          // give us only one character at time.
+          def readPassword:Stream[Char] = {
+            val chars = console.readPassword("SVN repository password: ")
+            if ((chars eq null) || chars.isEmpty)
+              Stream.empty
+            else
+              Stream.concat(Stream.fromIterator(chars.elements), readPassword)
+          }
+
+          resolver.setUserPassword(new String(readPassword.toArray))
+        }
+      } else /*password ne null*/ {
         resolver.setUserPassword(password)
       }
       Some(resolver)
-    } else {
+    } else /*repo eq null*/ {
       None
     }
   }
