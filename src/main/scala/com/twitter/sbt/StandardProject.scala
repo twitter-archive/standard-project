@@ -144,7 +144,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
       FileUtilities.copyFlat(dependentJars.get, distPath / "libs", log).left.toOption orElse
       FileUtilities.copy((configPath ***).get, configOutputPath, log).left.toOption orElse
       FileUtilities.copy(((outputPath ##) ** "*.pom").get, distPath, log).left.toOption orElse
-      FileUtilities.zip((("dist" ##) / distName).get, "dist" / distZipName, true, log)
+      FileUtilities.zip((("dist" / distName) ##).get, "dist" / distZipName, true, log)
   }
 
   val PackageDistDescription = "Creates a deployable zip file with dependencies, config, and scripts."
@@ -156,5 +156,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##)
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.5.6 loaded (2010-05-24).")
+  log.info("Standard project rules 0.5.8 loaded (2010-05-25).")
 }
