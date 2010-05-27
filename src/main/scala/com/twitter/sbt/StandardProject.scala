@@ -24,7 +24,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def releaseBuild = false
 
   // maven repositories
-  val local = Resolver.file("local", new java.io.File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
+  val localLibs = Resolver.file("local-libs", new java.io.File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
   val ibiblioRepository  = "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/"
 //  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
   val lagRepository      = "lag.net" at "http://www.lag.net/repo/"
