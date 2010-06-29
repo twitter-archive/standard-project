@@ -103,6 +103,9 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def thriftJavaPath = outputPath / "gen-java"
   def thriftRubyPath = outputPath / "gen-rb"
 
+  // turn on more warnings.
+  override def compileOptions = super.compileOptions ++ Seq(Unchecked)
+
   lazy val cleanThrift = (cleanTask(thriftJavaPath) && cleanTask(thriftRubyPath)) describedAs("Clean thrift generated folder")
   lazy val compileThriftJava = compileThriftAction("java") describedAs("Compile thrift into java")
   lazy val compileThriftRuby = compileThriftAction("rb") describedAs("Compile thrift into ruby")
