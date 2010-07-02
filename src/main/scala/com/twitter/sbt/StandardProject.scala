@@ -153,6 +153,14 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val PackageDistDescription = "Creates a deployable zip file with dependencies, config, and scripts."
   lazy val packageDist = packageDistTask dependsOn(`package`, makePom, copyScripts) describedAs PackageDistDescription
 
+  override def testOptions = {
+    if (env.get("NO_TESTS").isDefined || env.get("NO_TEST").isDefined) {
+      List(TestFilter(_ => false))
+    } else {
+      Nil
+    } ++ super.testOptions
+  }
+
   override def compileAction = super.compileAction dependsOn(compileThriftJava, compileThriftRuby)
   override def packageAction = super.packageAction dependsOn(testAction, writeBuildProperties)
 
