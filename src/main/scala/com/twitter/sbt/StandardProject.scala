@@ -93,8 +93,9 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def compileThriftAction(lang: String) = task {
     import Process._
     outputPath.asFile.mkdirs()
+    val thriftBin = env.get("THRIFT_BIN").getOrElse("thrift")
     val tasks = thriftSources.getPaths.map { path =>
-      execTask { "thrift --gen %s -o %s %s".format(lang, outputPath.absolutePath, path) }
+      execTask { "%s --gen %s -o %s %s".format(thriftBin,lang, outputPath.absolutePath, path) }
     }
     if (tasks.isEmpty) None else tasks.reduceLeft { _ && _ }.run
   }
@@ -120,7 +121,8 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
       "TEST_CLASSPATH" -> testClasspath.getPaths.mkString(":"),
       "DIST_CLASSPATH" -> (dependentJarNames.map { "${DIST_HOME}/libs/" + _ }.mkString(":") +
         ":${DIST_HOME}/" + defaultJarName),
-      "DIST_NAME" -> name
+      "DIST_NAME" -> name,
+      "VERSION" -> version.toString
     )
 
     scriptsOutputPath.asFile.mkdirs()
