@@ -167,8 +167,8 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   override def compileAction = super.compileAction dependsOn(compileThriftJava, compileThriftRuby)
   override def packageAction = super.packageAction dependsOn(testAction, writeBuildProperties)
 
-  val cleanDist = cleanTask("dist" ##)
+  val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.5.8 loaded (2010-05-25).")
+  log.info("Standard project rules 0.5.12 loaded (2010-08-03).")
 }
