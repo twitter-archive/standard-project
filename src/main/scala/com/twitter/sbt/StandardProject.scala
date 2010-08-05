@@ -44,6 +44,12 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Resolver.url("twitter-private") artifacts("file:/tmp/[artifact]-[revision].[ext]")
   }
 
+  val twitterPrivateRepoM2 = if (env.get("SBT_TWITTER").isDefined) {
+    new MavenRepository("twitter-private-m2", "http://binaries.local.twitter.com/maven/")
+  } else {
+    DefaultMavenRepository
+  }
+
   // make a build.properties file and sneak it into the packaged jar.
   def buildPackage = organization + "." + name
   def packageResourcesPath = buildPackage.split("\\.").foldLeft(mainResourcesOutputPath ##) { _ / _ }
