@@ -27,6 +27,7 @@ trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
       resolver.setName("svn")
       resolver.setRepositoryRoot(repo)
       resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"))
+      resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
 
       val username = prefs.getProperty("username")
       if (username ne null) {
