@@ -24,7 +24,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def releaseBuild = false
 
   // maven repositories
-  val localLibs = Resolver.file("local-libs", new java.io.File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
+  val localLibs = Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
   val ibiblioRepository  = "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/"
 //  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
   val lagRepository      = "lag.net" at "http://www.lag.net/repo/"
@@ -176,5 +176,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.5.12 loaded (2010-08-03).")
+  log.info("Standard project rules 0.5.14 loaded (2010-08-16).")
 }
