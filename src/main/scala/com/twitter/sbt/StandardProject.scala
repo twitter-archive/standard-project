@@ -133,8 +133,10 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 
     scriptsOutputPath.asFile.mkdirs()
     (scriptsPath ***).filter { !_.isDirectory }.get.foreach { path =>
-      FileFilter.filter(path, scriptsOutputPath / path.name, filters)
-      Runtime.getRuntime().exec(List("chmod", "+x", (scriptsOutputPath / path.name).absolutePath.toString).toArray).waitFor()
+      val dest = Path.fromString(scriptsOutputPath, path.relativePath)
+      new File(dest.absolutePath.toString).getParentFile().mkdirs()
+      FileFilter.filter(path, dest, filters)
+      Runtime.getRuntime().exec(List("chmod", "+x", dest.absolutePath.toString).toArray).waitFor()
     }
     None
   } named("copy-scripts") dependsOn(`compile`) describedAs CopyScriptsDescription
