@@ -29,6 +29,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 //  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
   val lagRepository      = "lag.net" at "http://www.lag.net/repo/"
   val twitterRepository  = "twitter.com" at "http://www.lag.net/nest/"
+  val nuTwitterRepository= "twitter.com" at "http://twitter.github.com/repo/"
   val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
   val scalaToolsReleases = "scala-tools.org" at "http://scala-tools.org/repo-releases/"
   val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/"
@@ -178,5 +179,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.5.14 loaded (2010-08-16).")
+  log.info("Standard project rules 0.6.0 loaded (2010-08-26).")
 }
