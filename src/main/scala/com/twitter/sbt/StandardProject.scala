@@ -29,7 +29,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 //  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
   val lagRepository      = "lag.net" at "http://www.lag.net/repo/"
   val twitterRepository  = "old.twitter.com" at "http://www.lag.net/nest/"
-  val nuTwitterRepository= "twitter.com" at "http://twitter.github.com/repo/"
+  val nuTwitterRepository= "twitter.com" at "http://maven.twttr.com/"
   val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
   val scalaToolsReleases = "scala-tools.org" at "http://scala-tools.org/repo-releases/"
   val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/"
