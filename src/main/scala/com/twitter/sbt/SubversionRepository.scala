@@ -13,6 +13,9 @@ trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
   private val prefs = new Properties()
   private val prefsFilename = System.getProperty("user.home") + "/.svnrepo"
 
+  // override me to publish to subversion.
+  val subversionRepository: Option[String] = None
+
   try {
     prefs.load(new FileReader(prefsFilename))
   } catch {
@@ -21,8 +24,7 @@ trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
   }
 
   lazy val subversionResolver = {
-    val repo = prefs.getProperty("repo")
-    if (repo ne null) {
+    subversionRepository.map { repo =>
       val resolver = new SvnResolver()
       resolver.setName("svn")
       resolver.setRepositoryRoot(repo)
@@ -42,7 +44,7 @@ trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
           // console in a way so that it isn't line-buffered anymore,
           // or for some other reason causes Console.readPassword to
           // give us only one character at time.
-          def readPassword:Stream[Char] = {
+          def readPassword: Stream[Char] = {
             val chars = console.readPassword("SVN repository password: ")
             if ((chars eq null) || chars.isEmpty)
               Stream.empty
@@ -52,12 +54,10 @@ trait SubversionRepository extends BasicManagedProject { self: DefaultProject =>
 
           resolver.setUserPassword(new String(readPassword.toArray))
         }
-      } else /*password ne null*/ {
+      } else {
         resolver.setUserPassword(password)
       }
-      Some(resolver)
-    } else /*repo eq null*/ {
-      None
+      resolver
     }
   }
 
