@@ -21,21 +21,17 @@ trait Versions extends BasicManagedProject { self: DefaultProject =>
     log.info("New version:     " + projectVersion.value)
     saveEnvironment()
 
-    "git add project/build.properties" !! NullLogger
-    "git commit -m " + projectVersion.value.toString !! NullLogger
-    "git tag -m version-" + projectVersion.value.toString + " version-" + projectVersion.value.toString !! NullLogger
+    val versionString = projectVersion.value.toString
+    val rv = (
+      <x>git add project/build.properties</x> #&&
+      <x>git commit -m {versionString}</x> #&&
+      <x>git tag -m version-{versionString} version-{versionString}</x>
+    ) !! NullLogger
 
-/*    println("ver = " + projectVersion.value)
-    projectVersion.update(projectVersion.value.incMinor())
-    println("ver = " + projectVersion.value)
-    projectVersion.update(projectVersion.value.incMajor())
-    println("ver = " + projectVersion.value)
-//    projectVersion.update(Version.fromString("1.1.8").right.get)
-"git diff" !; */
     None
   }
 
   lazy val versionBump = versionBumpTask(projectVersion.value.incMicro()) named("version-bump") describedAs("bump patch version")
-
-
+  lazy val versionBumpMinor = versionBumpTask(projectVersion.value.incMinor()) named("version-bump-minor") describedAs("bump minor version")
+  lazy val versionBumpMajor = versionBumpTask(projectVersion.value.incMajor()) named("version-bump-major") describedAs("bump major version")
 }
