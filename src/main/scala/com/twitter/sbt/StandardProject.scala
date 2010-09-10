@@ -172,5 +172,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.6.0 loaded (2010-08-26).")
+  log.info("Standard project rules 0.7.1 loaded (2010-09-03).")
 }
