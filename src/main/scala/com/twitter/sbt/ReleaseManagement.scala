@@ -46,9 +46,7 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: Defa
 
   lazy val finalizeRelease = finalizeReleaseTask
 
-  def publishReleaseTask = task {
-    `publish`.run
-  }
+  def publishReleaseTask = task { `publish`.run }
 
   val PublishReleaseDescription = "Publish a release to maven. commits and tags version in git."
   lazy val publishRelease =
