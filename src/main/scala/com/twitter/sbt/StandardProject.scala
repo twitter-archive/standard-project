@@ -8,7 +8,7 @@ import java.text.SimpleDateFormat
 import scala.collection.jcl
 
 
-class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject with Versions {
+class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject with ReleaseManagement with Versions {
   override def dependencyPath = "libs"
   override def disableCrossPaths = true
   def timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date)
