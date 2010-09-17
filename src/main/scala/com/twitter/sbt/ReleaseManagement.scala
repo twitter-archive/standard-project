@@ -5,31 +5,21 @@ import _root_.sbt.Process._
 import pimpedversion._
 
 trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: DefaultProject =>
-  private def checkCleanWorkingTreeTask = task {
-    if ( !gitIsCleanWorkingTree ) error("cannot publish release. working directory is not clean")
-    None
-  }
-
-  private def checkForSnapshottedDependenciesTask = task {
-    val myName = self.getClass.getName
-    // TODO: do this without grepping the source code... :/
-    val output = "grep '-SNAPSHOT' project/build/*Project.scala" !! NullLogger
-
-    if ( output.contains("SNAPSHOT") )
-      error ("cannot publish a release with snapshotted dependencies")
-
-    None
-  }
-
-  private def checkExistingTagTask = task {
+  def prepareForReleaseTask = task {
     val version = projectVersion.value.toString
     val output = ("git tag -l | grep " + version) !! NullLogger
 
-    if ( output.contains(version) && !output.contains("-SNAPSHOT") )
-      error ("cannot publish release version '" + version + "'. tag already exists.")
-
-    None
+    if ( !gitIsCleanWorkingTree )
+      Some("Cannot publish release. Working directory is not clean.")
+    else if ( libraryDependencies.exists(_.revision.contains("SNAPSHOT")) )
+      Some("Cannot publish a release with snapshotted dependencies.")
+    else if ( output.contains(version) && !output.contains("SNAPSHOT") )
+      Some("Cannot publish release version '" + version + "'. Tag for that release already exists.")
+    else
+      stripSnapshotExtraTask.run
   }
+
+  lazy val prepareForRelease = prepareForReleaseTask
 
   private def stripSnapshotExtraTask = task {
     projectVersion.update(projectVersion.value.stripSnapshot())
@@ -38,7 +28,7 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: Defa
     None
   }
 
-  private def finalizeReleaseTask = task {
+  def finalizeReleaseTask = task {
     val version = projectVersion.value
     val newVersion = projectVersion.value.incMicro().addSnapshot()
 
@@ -47,20 +37,24 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: Defa
     gitTag("version-" + version.toString)
 
     // reset version to the new working version
-    projectVersion.update(newVersion); saveEnvironment()
+    projectVersion.update(newVersion)
+    saveEnvironment()
     gitCommitSavedEnvironment(Some("base " + newVersion.toString))
 
     None
   }
 
+  lazy val finalizeRelease = finalizeReleaseTask
+
+  def publishReleaseTask = task {
+    `publish`.run
+  }
+
   val PublishReleaseDescription = "Publish a release to maven. commits and tags version in git."
-  lazy val publishRelease = task { None } dependsOn(
-    task { log.info("Publishing new release: " + projectVersion.value.stripSnapshot()); None },
-    checkCleanWorkingTreeTask,
-    checkForSnapshottedDependenciesTask,
-    checkExistingTagTask,
-    stripSnapshotExtraTask,
-    publish,
-    finalizeReleaseTask
-  ) describedAs PublishReleaseDescription
+  lazy val publishRelease =
+    task { log.info("Publishing new release: " + projectVersion.value.stripSnapshot()); None } &&
+    prepareForReleaseTask &&
+    publishReleaseTask &&
+    finalizeReleaseTask describedAs
+    PublishReleaseDescription
 }
