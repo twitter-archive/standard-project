@@ -39,7 +39,7 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: Defa
     // reset version to the new working version
     projectVersion.update(newVersion)
     saveEnvironment()
-    gitCommitSavedEnvironment(Some("base " + newVersion.toString))
+    gitCommitSavedEnvironment(Some(newVersion.toString))
 
     None
   }

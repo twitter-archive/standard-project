@@ -11,10 +11,7 @@ trait Versions extends BasicManagedProject with GitHelpers { self: DefaultProjec
     log.info("New version:     " + projectVersion.value)
     saveEnvironment()
 
-    val versionString = projectVersion.value.toString
-
-    gitCommitSavedEnvironment(Some(versionString))
-    gitTag("version-" + versionString)
+    gitCommitSavedEnvironment(Some(projectVersion.value.toString))
 
     None
   }
