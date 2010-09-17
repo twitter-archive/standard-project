@@ -12,12 +12,16 @@ object pimpedversion {
     def incMajor() = BasicVersion(wrapped.major + 1, wrapped.minor.map { _ => 0 }, wrapped.micro.map { _ => 0 }, wrapped.extra)
 
     def stripSnapshot() = {
-      val stripped = wrapped.extra.map(_.replaceFirst("""-SNAPSHOT$""", ""))
+      val stripped = wrapped.extra.map(_.replaceAll("""-?SNAPSHOT""", "")) match {
+        case None => None
+        case Some(s) => if ( s.length > 0 ) Some(s) else None
+      }
+
       BasicVersion(wrapped.major, wrapped.minor, wrapped.micro, stripped)
     }
 
     def addSnapshot() = {
-      val unstripped = wrapped.extra.map( _ + "-SNAPSHOT").orElse(Some("-SNAPSHOT"))
+      val unstripped = wrapped.extra.map( _ + "-SNAPSHOT").orElse(Some("SNAPSHOT"))
       BasicVersion(wrapped.major, wrapped.minor, wrapped.micro, unstripped)
     }
   }
