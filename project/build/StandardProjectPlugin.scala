@@ -8,7 +8,7 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
   override def disableCrossPaths = true
   override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
 
-  val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://twitter.github.com/repo/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
+  val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://maven.twttr.com/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
 
   override def pomExtra =
     <licenses>
