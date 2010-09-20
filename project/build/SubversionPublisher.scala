@@ -1,5 +1,3 @@
-package com.twitter.sbt
-
 import java.io.FileReader
 import java.util.Properties
 import fm.last.ivy.plugins.svnresolver.SvnResolver

@@ -1,10 +1,12 @@
-import java.io.File
-import sbt._
+import java.io.{File, FileReader}
+import java.util.Properties
+import fm.last.ivy.plugins.svnresolver.SvnResolver
+import _root_.sbt._
 
-
-class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) {
+// TODO: somehow link on the real SubversionPublisher in the main source tree
+class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with SubversionPublisher {
   override def disableCrossPaths = true
-  override def ivyCacheDirectory = Some(Path.fromFile(new File(System.getProperty("user.home"))) / ".ivy2-sbt" ##)
+  override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
 
   val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://twitter.github.com/repo/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
 
@@ -16,7 +18,4 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) {
         <distribution>repo</distribution>
       </license>
     </licenses>
-
-  Credentials(Path.userHome / ".ivy2" / "credentials", log)
-  val publishTo = "nexus" at "http://nexus.scala-tools.org/content/repositories/releases/"
 }
