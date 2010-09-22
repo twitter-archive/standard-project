@@ -172,5 +172,9 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
-  log.info("Standard project rules 0.7.5 loaded (2010-09-21).")
+  // allow publish-local to write maven-compatible folders.
+  val localm2 = Resolver.file("localm2", new File(Resolver.userIvyRoot + "/local"))(Patterns(Resolver.mavenStyleBasePattern))
+  override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
+
+  log.info("Standard project rules 0.7.6 loaded (2010-09-21).")
 }
