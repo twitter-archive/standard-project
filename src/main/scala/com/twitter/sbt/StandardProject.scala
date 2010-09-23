@@ -173,8 +173,11 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
 
   // allow publish-local to write maven-compatible folders.
-  val localm2 = Resolver.file("localm2", new File(Resolver.userIvyRoot + "/local"))(Patterns(Resolver.mavenStyleBasePattern))
+
+  val ivyBasePattern = "[organisation]/[module]/[revision]/ivy-[revision](-[classifier]).[ext]"
+  val localm2 = Resolver.file("localm2", new File(Resolver.userIvyRoot + "/local"))(
+    Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
-  log.info("Standard project rules 0.7.6 loaded (2010-09-21).")
+  log.info("Standard project rules 0.7.7 loaded (2010-09-23).")
 }
