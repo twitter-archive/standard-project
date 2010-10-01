@@ -6,7 +6,7 @@ import _root_.sbt._
 
 trait Tartifactory {
   def artifactoryRoot = "http://artifactory.local.twitter.com"
-  def proxyRepo = "remote-repos"
+  def proxyRepo = "repo"
   def snapshotDeployRepo = "libs-snapshots-local"
   def releaseDeployRepo = "libs-releases-local"
 }
@@ -23,7 +23,7 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self
 
 trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   private val tartEnv = jcl.Map(System.getenv())
-  val internalRepos = List("artifactory.local" at (artifactoryRoot + "/" + proxyRepo))
+  val internalRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
   val externalRepos = List(
     Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional(),
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
@@ -39,7 +39,12 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: De
     "atlassian" at "https://m2proxy.atlassian.com/repository/public/")
 
   override def repositories: Set[Resolver] = {
-    val projectRepos = if (tartEnv.get("ARTIFACTORY_TWITTER").isDefined) {
+    val useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
+      case Some(v) => v != "false"
+      case _ => true
+    }
+
+    val projectRepos = if (useArtifactory) {
       internalRepos
     } else {
       externalRepos
