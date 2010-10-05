@@ -22,7 +22,7 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
   def snapshotDeployRepo = "libs-snapshots-local"
   def releaseDeployRepo = "libs-releases-local"
 
-  Credentials(Path.userHome / ".ivy2" / ".credentials", log)
+  Credentials(Path.userHome / ".ivy2" / "twitter-credentials", log)
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
     "Twitter Artifactory" at (artifactoryRoot + "/" + snapshotDeployRepo)
   } else {

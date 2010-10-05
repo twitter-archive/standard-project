@@ -13,7 +13,7 @@ trait Tartifactory {
 trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self: DefaultProject =>
 
   override def managedStyle = ManagedStyle.Maven
-  Credentials(Path.userHome / ".ivy2" / ".credentials", log)
+  Credentials(Path.userHome / ".ivy2" / "twitter-credentials", log)
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
     "Twitter Artifactory" at (artifactoryRoot + "/" + snapshotDeployRepo)
   } else {
