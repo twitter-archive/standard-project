@@ -23,7 +23,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   // override me for releases!
   def releaseBuild = false
 
-  // maven repositories
+  // local repositories
   val localLibs = Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
 
   // make a build.properties file and sneak it into the packaged jar.

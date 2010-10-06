@@ -10,8 +10,8 @@ trait Tartifactory {
   def snapshotDeployRepo = "libs-snapshots-local"
   def releaseDeployRepo = "libs-releases-local"
 }
-trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self: DefaultProject =>
 
+trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   override def managedStyle = ManagedStyle.Maven
   Credentials(Path.userHome / ".ivy2" / "twitter-credentials", log)
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
@@ -25,7 +25,6 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: De
   private val tartEnv = jcl.Map(System.getenv())
   val internalRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
   val externalRepos = List(
-    Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional(),
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
     "lag.net" at "http://www.lag.net/repo/",
     "old.twitter.com" at "http://www.lag.net/nest/",
