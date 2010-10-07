@@ -14,50 +14,56 @@ trait SubversionPublisher extends BasicManagedProject { self: DefaultProject =>
   // override me to publish to subversion.
   def subversionRepository: Option[String] = None
 
-  try {
+  private val loaded = try {
     prefs.load(new FileReader(prefsFilename))
+    true
   } catch {
     case e: Exception =>
       log.warn("No .svnrepo file; no svn repo will be configured.")
+      false
   }
 
   lazy val subversionResolver = {
-    subversionRepository.map { repo =>
-      val resolver = new SvnResolver()
-      resolver.setName("svn")
-      resolver.setRepositoryRoot(repo)
-      resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"))
-      resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
+    if (loaded) {
+      subversionRepository.map { repo =>
+        val resolver = new SvnResolver()
+        resolver.setName("svn")
+        resolver.setRepositoryRoot(repo)
+        resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"))
+        resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
 
-      val username = prefs.getProperty("username")
-      if (username ne null) {
-        resolver.setUserName(username)
-      }
-      val password = prefs.getProperty("password")
-      if (password eq null) {
-        // Try to prompt the user for a password.
-        val console = System.console
-        if (console ne null) {
-          // This is super janky -- it seems that sbt hoses the
-          // console in a way so that it isn't line-buffered anymore,
-          // or for some other reason causes Console.readPassword to
-          // give us only one character at time.
-          def readPassword: Stream[Char] = {
-            val chars = console.readPassword("SVN repository password: ")
-            if ((chars eq null) || chars.isEmpty)
-              Stream.empty
-            else
-              Stream.concat(Stream.fromIterator(chars.elements), readPassword)
-          }
-
-          resolver.setUserPassword(new String(readPassword.toArray))
+        val username = prefs.getProperty("username")
+        if (username ne null) {
+          resolver.setUserName(username)
         }
-      } else {
-        resolver.setUserPassword(password)
+        val password = prefs.getProperty("password")
+        if (password eq null) {
+          // Try to prompt the user for a password.
+          val console = System.console
+          if (console ne null) {
+            // This is super janky -- it seems that sbt hoses the
+            // console in a way so that it isn't line-buffered anymore,
+            // or for some other reason causes Console.readPassword to
+            // give us only one character at time.
+            def readPassword: Stream[Char] = {
+              val chars = console.readPassword("SVN repository password: ")
+              if ((chars eq null) || chars.isEmpty)
+                Stream.empty
+              else
+                Stream.concat(Stream.fromIterator(chars.elements), readPassword)
+            }
+
+            resolver.setUserPassword(new String(readPassword.toArray))
+          }
+        } else {
+          resolver.setUserPassword(password)
+        }
+        resolver.setBinaryDiff("true")
+        resolver.setCleanupPublishFolder("true")
+        resolver
       }
-      resolver.setBinaryDiff("true")
-      resolver.setCleanupPublishFolder("true")
-      resolver
+    } else {
+      None
     }
   }
 
