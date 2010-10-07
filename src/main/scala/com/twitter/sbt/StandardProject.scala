@@ -26,7 +26,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   // maven repositories
   val localLibs = Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
   val ibiblioRepository  = "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/"
-//  val jbossRepository    = "jboss" at "http://repository.jboss.org/maven2/"
   val lagRepository      = "lag.net" at "http://www.lag.net/repo/"
   val twitterRepository  = "old.twitter.com" at "http://www.lag.net/nest/"
   val nuTwitterRepository= "twitter.com" at "http://maven.twttr.com/"
