@@ -32,7 +32,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
   val scalaToolsReleases = "scala-tools.org" at "http://scala-tools.org/repo-releases/"
   val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/"
-  val reucon             = "reucon" at "http://maven.reucon.com/public/"
+  //val reucon             = "reucon" at "http://maven.reucon.com/public/"
   val oauthDotNet        = "oauth.net" at "http://oauth.googlecode.com/svn/code/maven"
   val javaDotNet         = "download.java.net" at "http://download.java.net/maven/2/"
   val atlassian          = "atlassian" at "https://m2proxy.atlassian.com/repository/public/"
