@@ -161,5 +161,11 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
+  override def packageDocsJar = defaultJarPath("-javadoc.jar")
+  override def packageSrcJar= defaultJarPath("-sources.jar")
+  val sourceArtifact = Artifact.sources(artifactID)
+  val docsArtifact = Artifact.javadoc(artifactID)
+  override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
+
   log.info("Standard project rules 0.7.7 loaded (2010-09-23).")
 }

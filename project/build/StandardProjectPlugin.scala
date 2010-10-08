@@ -1,4 +1,4 @@
-import java.io.{File, FileReader}
+import java.io.{BufferedReader, File, FileReader, InputStreamReader}
 import java.util.Properties
 import fm.last.ivy.plugins.svnresolver.SvnResolver
 import scala.collection.jcl
@@ -29,6 +29,16 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
     "Twitter Artifactory" at (artifactoryRoot + "/" + releaseDeployRepo)
   }
 
+  override def publishTask(module: => IvySbt#Module, publishConfiguration: => PublishConfiguration) = task {
+    val stdinReader = new BufferedReader(new InputStreamReader(System.in))
+    System.out.print("enter your artifactory username: ")
+    val username = stdinReader.readLine
+    System.out.print("\nentire your artifactory password: ")
+    val password = stdinReader.readLine
+    Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    super.publishTask(module, publishConfiguration).run
+  }
+
   override def pomExtra =
     <licenses>
       <license>
@@ -37,4 +47,10 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
         <distribution>repo</distribution>
       </license>
     </licenses>
+
+  override def packageDocsJar = defaultJarPath("-javadoc.jar")
+  override def packageSrcJar= defaultJarPath("-sources.jar")
+  val sourceArtifact = Artifact.sources(artifactID)
+  val docsArtifact = Artifact.javadoc(artifactID)
+  override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
 }
