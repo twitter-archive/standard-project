@@ -22,7 +22,6 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
   def snapshotDeployRepo = "libs-snapshots-local"
   def releaseDeployRepo = "libs-releases-local"
 
-  Credentials(Path.userHome / ".ivy2" / ".credentials", log)
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
     "Twitter Artifactory" at (artifactoryRoot + "/" + snapshotDeployRepo)
   } else {
@@ -30,12 +29,14 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
   }
 
   override def publishTask(module: => IvySbt#Module, publishConfiguration: => PublishConfiguration) = task {
-    val stdinReader = new BufferedReader(new InputStreamReader(System.in))
-    System.out.print("enter your artifactory username: ")
-    val username = stdinReader.readLine
-    System.out.print("\nentire your artifactory password: ")
-    val password = stdinReader.readLine
-    Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    if (publishConfiguration.resolverName != "local") {
+      val stdinReader = new BufferedReader(new InputStreamReader(System.in))
+      System.out.print("enter your artifactory username: ")
+      val username = stdinReader.readLine
+      System.out.print("\nentire your artifactory password: ")
+      val password = stdinReader.readLine
+      Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    }
     super.publishTask(module, publishConfiguration).run
   }
 

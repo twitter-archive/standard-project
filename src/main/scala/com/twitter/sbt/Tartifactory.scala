@@ -21,12 +21,14 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self
   }
 
   override def publishTask(module: => IvySbt#Module, publishConfiguration: => PublishConfiguration) = task {
-    val stdinReader = new BufferedReader(new InputStreamReader(System.in))
-    System.out.print("enter your artifactory username: ")
-    val username = stdinReader.readLine
-    System.out.print("\nentire your artifactory password: ")
-    val password = stdinReader.readLine
-    Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    if (publishConfiguration.resolverName != "local") {
+      val stdinReader = new BufferedReader(new InputStreamReader(System.in))
+      System.out.print("enter your artifactory username: ")
+      val username = stdinReader.readLine
+      System.out.print("\nentire your artifactory password: ")
+      val password = stdinReader.readLine
+      Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    }
     super.publishTask(module, publishConfiguration).run
   }
 }
