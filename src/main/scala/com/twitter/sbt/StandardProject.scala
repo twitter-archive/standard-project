@@ -32,7 +32,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
   val scalaToolsReleases = "scala-tools.org" at "http://scala-tools.org/repo-releases/"
   val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/"
-  //val reucon             = "reucon" at "http://maven.reucon.com/public/"
   val oauthDotNet        = "oauth.net" at "http://oauth.googlecode.com/svn/code/maven"
   val javaDotNet         = "download.java.net" at "http://download.java.net/maven/2/"
   val atlassian          = "atlassian" at "https://m2proxy.atlassian.com/repository/public/"
@@ -178,5 +177,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
-  log.info("Standard project rules 0.7.8 loaded (2010-10-06).")
+  log.info("Standard project rules 0.7.10 loaded (2010-10-12).")
 }
