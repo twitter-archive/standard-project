@@ -167,5 +167,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val docsArtifact = Artifact.javadoc(artifactID)
   override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
 
-  log.info("Standard project rules 0.7.7 loaded (2010-09-23).")
+  log.info("Standard project rules 0.8.0-SNAPSHOT loaded (2010-10-12).")
 }

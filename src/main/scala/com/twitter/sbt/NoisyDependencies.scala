@@ -10,13 +10,13 @@ import java.util.Collection
 class LatestCompatibleWarningsManager extends AbstractConflictManager {
   val loose = new LatestConflictManager
   val strict = new LatestCompatibleConflictManager
-  
+
   override def setSettings(ivySettings: IvySettings) = {
     loose.setSettings(ivySettings)
     strict.setSettings(ivySettings)
     super.setSettings(ivySettings)
   }
-  
+
   override def resolveConflicts(parent: IvyNode, conflicts: Collection[_]): Collection[_] = {
     try {
       strict.resolveConflicts(parent, conflicts)
@@ -27,10 +27,10 @@ class LatestCompatibleWarningsManager extends AbstractConflictManager {
       }
     }
   }
-} 
+}
 
 trait NoisyDependencies extends BasicManagedProject { self: DefaultProject =>
-  
+
   override def ivySbt: IvySbt = {
     val i = super.ivySbt
     i.withIvy { apacheIvy =>
