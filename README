@@ -1,1 +1,11 @@
-A more useful sbt project plugin.
+
+Standard-project is a basic set of extensions to sbt to codify best practices.
+
+- Include standard maven repos
+- Simplify publishing to svn-based repositories
+- Create a "build.properties" file in finished products
+- Compile thrift IDL files if they're present
+- Fix local & remote repos to be "maven-style" so transitive dependencies work
+- Adds rules like:
+  - "package-dist" -- build a deployable zip file with included config & scripts
+  - "publish-release" -- atomically bump version number & deploy

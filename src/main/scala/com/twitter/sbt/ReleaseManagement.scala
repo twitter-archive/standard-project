@@ -7,16 +7,17 @@ import pimpedversion._
 trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: DefaultProject =>
   def prepareForReleaseTask = task {
     val version = projectVersion.value.toString
-    val output = ("git tag -l | grep " + version) !! NullLogger
+    val tags = ("git tag -l | grep " + version) !!
 
-    if ( !gitIsCleanWorkingTree )
+    if (!gitIsCleanWorkingTree) {
       Some("Cannot publish release. Working directory is not clean.")
-    else if ( libraryDependencies.exists(_.revision.contains("SNAPSHOT")) )
+    } else if (libraryDependencies.exists(_.revision.contains("SNAPSHOT"))) {
       Some("Cannot publish a release with snapshotted dependencies.")
-    else if ( output.contains(version) && !output.contains("SNAPSHOT") )
+    } else if (tags.contains(version) && !tags.contains("SNAPSHOT")) {
       Some("Cannot publish release version '" + version + "'. Tag for that release already exists.")
-    else
+    } else {
       stripSnapshotExtraTask.run
+    }
   }
 
   lazy val prepareForRelease = prepareForReleaseTask
@@ -46,7 +47,10 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: Defa
 
   lazy val finalizeRelease = finalizeReleaseTask
 
-  def publishReleaseTask = task { `publish`.run }
+  def publishReleaseTask = task {
+    val exitCode = ("sbt +publish" !)
+    if (exitCode == 0) None else Some("sbt +publish exit code " + exitCode)
+  }
 
   val PublishReleaseDescription = "Publish a release to maven. commits and tags version in git."
   lazy val publishRelease =
