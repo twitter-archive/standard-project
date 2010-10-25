@@ -26,16 +26,14 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: De
   val internalRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
   val externalRepos = List(
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
-    "lag.net" at "http://www.lag.net/repo/",
-    "old.twitter.com" at "http://www.lag.net/nest/",
     "twitter.com" at "http://maven.twttr.com/",
     "powermock-api" at "http://powermock.googlecode.com/svn/repo/",
     "scala-tools.org" at "http://scala-tools.org/repo-releases/",
     "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/",
-    "reucon" at "http://maven.reucon.com/public/",
     "oauth.net" at "http://oauth.googlecode.com/svn/code/maven",
     "download.java.net" at "http://download.java.net/maven/2/",
-    "atlassian" at "https://m2proxy.atlassian.com/repository/public/")
+    "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
+    "jboss" at "http://repository.jboss.org/nexus/content/groups/public/")
 
   override def repositories: Set[Resolver] = {
     val useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
