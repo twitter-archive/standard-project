@@ -171,5 +171,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
-  log.info("Standard project rules 0.7.12 loaded (2010-11-08).")
+  log.info("Standard project rules 0.8.1 loaded (2010-11-16).")
 }
