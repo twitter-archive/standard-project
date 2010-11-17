@@ -26,6 +26,8 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   // local repositories
   val localLibs = Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
 
+  override def managedStyle = ManagedStyle.Maven
+
   // make a build.properties file and sneak it into the packaged jar.
   def buildPackage = organization + "." + name
   def packageResourcesPath = buildPackage.split("\\.").foldLeft(mainResourcesOutputPath ##) { _ / _ }
@@ -43,12 +45,20 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     buildProperties.store(fileWriter, "")
     fileWriter.close()
     None
-  }
+  }.dependsOn(copyResources)
 
   val WriteBuildPropertiesDescription = "Writes a build.properties file into the target folder."
   lazy val writeBuildProperties = writeBuildPropertiesTask dependsOn(copyResources) describedAs WriteBuildPropertiesDescription
 
-  override def managedStyle = ManagedStyle.Maven
+  // need to add mainResourcesOutputPath so the build.properties file can be found.
+  override def consoleAction = interactiveTask {
+    val console = new Console(buildCompiler)
+    val classpath = consoleClasspath +++ mainResourcesOutputPath
+    console(classpath.get, compileOptions.map(_.asString), "", log)
+  } dependsOn(writeBuildProperties)
+
+  // need to add mainResourcesOutputPath so the build.properties file can be found.
+  override def runAction = task { args => runTask(getMainClass(true), runClasspath +++ mainResourcesOutputPath, args) dependsOn(compile, writeBuildProperties) }
 
   // build the executable jar's classpath.
   // (why is it necessary to explicitly remove the target/{classes,resources} paths? hm.)
@@ -161,5 +171,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
-  log.info("Standard project rules 0.7.10 loaded (2010-10-12).")
+  log.info("Standard project rules 0.7.12 loaded (2010-11-08).")
 }
