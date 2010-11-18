@@ -172,7 +172,15 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     } ++ super.testOptions
   }
 
-  override def compileAction = super.compileAction dependsOn(compileThriftJava, compileThriftRuby)
+  lazy val checkDepsExist = task {
+    if (managedDependencyRootPath.asFile.exists) {
+      None
+    } else {
+      Some("You must run 'sbt update' first to download dependent jars.")
+    }
+  }
+
+  override def compileAction = super.compileAction dependsOn(checkDepsExist, compileThriftJava, compileThriftRuby)
   override def packageAction = super.packageAction dependsOn(testAction, writeBuildProperties)
 
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
@@ -185,5 +193,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
-  log.info("Standard project rules 0.7.12 loaded (2010-11-08).")
+  log.info("Standard project rules 0.7.13 loaded (2010-11-17).")
 }
