@@ -13,10 +13,10 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   override def disableCrossPaths = true
   def timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date)
 
-  val env = jcl.Map(System.getenv())
+  val environment = jcl.Map(System.getenv())
 
   // override ivy cache
-  override def ivyCacheDirectory = env.get("SBT_CACHE").map { cacheDir =>
+  override def ivyCacheDirectory = environment.get("SBT_CACHE").map { cacheDir =>
     Path.fromFile(new File(cacheDir))
   }
 
@@ -34,7 +34,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val javaDotNet         = "download.java.net" at "http://download.java.net/maven/2/"
   val atlassian          = "atlassian" at "https://m2proxy.atlassian.com/repository/public/"
 
-  val twitterPrivateRepo = if (env.get("SBT_TWITTER").isDefined) {
+  val twitterPrivateRepo = if (environment.get("SBT_TWITTER").isDefined) {
     new MavenRepository("twitter-private-m2", "http://binaries.local.twitter.com/maven/")
   } else {
     DefaultMavenRepository
@@ -99,7 +99,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   def compileThriftAction(lang: String) = task {
     import Process._
     outputPath.asFile.mkdirs()
-    val thriftBin = env.get("THRIFT_BIN").getOrElse("thrift")
+    val thriftBin = environment.get("THRIFT_BIN").getOrElse("thrift")
     val tasks = thriftSources.getPaths.map { path =>
       execTask { "%s --gen %s -o %s %s".format(thriftBin,lang, outputPath.absolutePath, path) }
     }
@@ -165,7 +165,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   lazy val packageDist = packageDistTask dependsOn(`package`, makePom, copyScripts) describedAs PackageDistDescription
 
   override def testOptions = {
-    if (env.get("NO_TESTS").isDefined || env.get("NO_TEST").isDefined) {
+    if (environment.get("NO_TESTS").isDefined || environment.get("NO_TEST").isDefined) {
       List(TestFilter(_ => false))
     } else {
       Nil
@@ -193,5 +193,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
-  log.info("Standard project rules 0.7.13 loaded (2010-11-17).")
+  log.info("Standard project rules 0.7.14 loaded (2010-11-18).")
 }
