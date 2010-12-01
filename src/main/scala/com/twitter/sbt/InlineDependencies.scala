@@ -17,6 +17,8 @@ trait InlineDependencies extends BasicManagedProject { self: DefaultProject =>
     Map() ++ super.subProjects ++ inlinedSubprojects
   }
 
+  override def shouldCheckOutputDirectories = false
+
   def inline(m: ModuleID) = {
     val path = Path.fromFile("../" + m.name)
     if (inlineEnvironment.get("SBT_INLINE").isDefined && path.isDirectory)
