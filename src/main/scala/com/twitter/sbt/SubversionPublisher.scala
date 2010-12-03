@@ -61,6 +61,7 @@ trait SubversionPublisher extends BasicManagedProject { self: DefaultProject =>
           resolver.setUserPassword(password)
         }
         resolver.setBinaryDiff("true")
+        resolver.setBinaryDiffFolderName(".upload")
         resolver.setCleanupPublishFolder("true")
         resolver
       }
