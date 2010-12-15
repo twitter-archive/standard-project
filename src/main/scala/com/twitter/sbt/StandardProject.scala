@@ -7,7 +7,6 @@ import java.util.jar.Attributes
 import java.text.SimpleDateFormat
 import scala.collection.jcl
 
-
 class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject with ReleaseManagement with Versions {
   override def dependencyPath = "libs"
   override def disableCrossPaths = true
