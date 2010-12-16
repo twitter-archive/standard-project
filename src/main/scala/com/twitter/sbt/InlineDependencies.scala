@@ -4,7 +4,7 @@ import collection.mutable.{HashSet, HashMap, ListBuffer}
 import scala.collection.jcl
 import _root_.sbt._
 
-trait InlineDependencies extends BasicManagedProject { self: DefaultProject =>
+trait InlineDependencies extends BasicManagedProject {
   val inlineEnvironment = jcl.Map(System.getenv())
   val inlinedLibraryDependencies = new HashSet[ModuleID]()
   val inlinedSubprojects = new ListBuffer[(String, _root_.sbt.Project)]()
@@ -20,9 +20,10 @@ trait InlineDependencies extends BasicManagedProject { self: DefaultProject =>
 
   override def shouldCheckOutputDirectories = false
 
-  def inline(m: ModuleID) = {
+  def inline(m: ModuleID): Unit = inline(m, m.name)
+  def inline(m: ModuleID, relativePath: String) {
+    val path = Path.fromFile("../") / relativePath
     inlinedModules += (m.name -> m)
-    val path = Path.fromFile("../" + m.name)
     if (inlineEnvironment.get("SBT_INLINE").isDefined && path.isDirectory)
       inlinedSubprojects += (m.name -> project(path))
     else
