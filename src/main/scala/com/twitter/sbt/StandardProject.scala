@@ -73,10 +73,24 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   // need to add mainResourcesOutputPath so the build.properties file can be found.
   override def runAction = task { args => runTask(getMainClass(true), runClasspath +++ mainResourcesOutputPath, args) dependsOn(compile, writeBuildProperties) }
 
+  // workaround bug in sbt that hides scala-compiler.
+  override def filterScalaJars = false
+
   // build the executable jar's classpath.
   // (why is it necessary to explicitly remove the target/{classes,resources} paths? hm.)
-  def dependentJars = publicClasspath +++ mainDependencies.scalaJars --- mainCompilePath ---
-    mainResourcesOutputPath
+  def dependentJars = {
+    val jars =
+      publicClasspath +++ mainDependencies.scalaJars --- mainCompilePath --- mainResourcesOutputPath
+    if (jars.get.find { jar => jar.name.startsWith("scala-library-") }.isDefined) {
+      // workaround bug in sbt: if the compiler is explicitly included, don't include 2 versions
+      // of the library.
+      jars --- jars.filter { jar =>
+        jar.absolutePath.contains("/boot/") && jar.name == "scala-library.jar"
+      }
+    } else {
+      jars
+    }
+  }
   def dependentJarNames = dependentJars.getFiles.map(_.getName).filter(_.endsWith(".jar"))
   override def manifestClassPath = Some(dependentJarNames.map { "libs/" + _ }.mkString(" "))
 
@@ -172,10 +186,12 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   }
 
   lazy val checkDepsExist = task {
-    if (managedDependencyRootPath.asFile.exists) {
-      None
-    } else {
+    if (!managedDependencyRootPath.asFile.exists) {
       Some("You must run 'sbt update' first to download dependent jars.")
+    } else if (!(organization contains ".")) {
+      Some("Your organization name doesn't look like a valid package name. It needs to be something like 'com.example'.")
+    } else {
+      None
     }
   }
 
@@ -191,8 +207,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   val localm2 = Resolver.file("localm2", new File(Resolver.userIvyRoot + "/local"))(
     Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
   override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
-
-  log.info("Standard project rules 0.7.14 loaded (2010-11-18).")
 
   // generate ensime config
   lazy val genEnsime = task (args => {
@@ -231,4 +245,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     writer.close()
     None
   }
+
+  log.info("Standard project rules 0.7.19 loaded (2010-12-16).")
 }
