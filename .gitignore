@@ -3,3 +3,4 @@ lib_managed/
 src_managed/
 project/boot/
 project/plugins/project/
+src/main/scala/com/twitter/sbt/BuildInfo.scala

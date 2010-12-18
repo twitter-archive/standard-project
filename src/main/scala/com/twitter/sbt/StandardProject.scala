@@ -246,5 +246,5 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     None
   }
 
-  log.info("Standard project rules 0.7.19 loaded (2010-12-16).")
+  log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
 }
