@@ -23,8 +23,8 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self
 
 trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   private val tartEnv = jcl.Map(System.getenv())
-  val internalRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
-  val externalRepos = List(
+  def internalRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
+  def externalRepos = List(
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
     "twitter.com" at "http://maven.twttr.com/",
     "powermock-api" at "http://powermock.googlecode.com/svn/repo/",
@@ -35,17 +35,25 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: De
     "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
     "jboss" at "http://repository.jboss.org/nexus/content/groups/public/")
 
-  override def repositories: Set[Resolver] = {
-    val useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
-      case Some(v) => v != "false"
-      case _ => true
-    }
+  def useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
+    case Some(v) => v != "false"
+    case _ => true
+  }
 
+  override def repositories = {
     val projectRepos = if (useArtifactory) {
-      internalRepos
+      internalRepos ++ super.repositories
     } else {
-      externalRepos
+      externalRepos ++ super.repositories
     }
-    super.repositories ++ projectRepos
+    Set(projectRepos:_*)
+  }
+
+  override def ivyRepositories = {
+    if (useArtifactory) {
+      Seq(Resolver.defaultLocal(None)) ++ repositories.toList
+    } else {
+      super.ivyRepositories
+    }
   }
 }
