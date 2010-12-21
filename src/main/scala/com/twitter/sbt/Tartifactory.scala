@@ -2,6 +2,7 @@ package com.twitter.sbt
 
 import java.io.File
 import scala.collection.jcl
+import java.io.{BufferedReader, InputStreamReader}
 import _root_.sbt._
 
 trait Tartifactory {
@@ -13,11 +14,21 @@ trait Tartifactory {
 
 trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   override def managedStyle = ManagedStyle.Maven
-  Credentials(Path.userHome / ".ivy2" / "twitter-credentials", log)
+
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
     "Twitter Artifactory" at (artifactoryRoot + "/" + snapshotDeployRepo)
   } else {
     "Twitter Artifactory" at (artifactoryRoot + "/" + releaseDeployRepo)
+  }
+
+  override def publishTask(module: => IvySbt#Module, publishConfiguration: => PublishConfiguration) = task {
+    val stdinReader = new BufferedReader(new InputStreamReader(System.in))
+    System.out.print("enter your artifactory username: ")
+    val username = stdinReader.readLine
+    System.out.print("\nentire your artifactory password: ")
+    val password = stdinReader.readLine
+    Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    super.publishTask(module, publishConfiguration).run
   }
 }
 
