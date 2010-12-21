@@ -20,6 +20,14 @@ trait DefaultRepos extends BasicManagedProject { self: DefaultProject =>
   // for netty:
   val jboss              = "jboss" at "http://repository.jboss.org/nexus/content/groups/public/"
 
+  val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
+  val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
+  val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
+
+  // tears.  TEARS.
+  val binariesIvyStyleRepo = Resolver.url("twitter internal old ivy-style paths",
+                                          localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
+
   val twitterPrivateRepo = if (defEnv.get("SBT_TWITTER").isDefined) {
     new MavenRepository("twitter-private-m2", "http://binaries.local.twitter.com/maven/")
   } else {
