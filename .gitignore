@@ -4,3 +4,5 @@ src_managed/
 project/boot/
 project/plugins/project/
 src/main/scala/com/twitter/sbt/BuildInfo.scala
+
+/standard-project.tmproj

@@ -2,14 +2,23 @@ import java.io.{File, FileReader, FileWriter}
 import java.util.{Date, Properties}
 import java.text.SimpleDateFormat
 import fm.last.ivy.plugins.svnresolver.SvnResolver
+import scala.collection.jcl
 import _root_.sbt._
 
 // TODO: somehow link on the real SubversionPublisher in the main source tree
 class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with SubversionPublisher {
   override def disableCrossPaths = true
+
+  val env = jcl.Map(System.getenv())
+
   override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
 
   val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://maven.twttr.com/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
+
+  override def managedStyle = ManagedStyle.Maven
+  def artifactoryRoot = "http://artifactory.local.twitter.com"
+  def snapshotDeployRepo = "libs-snapshots-local"
+  def releaseDeployRepo = "libs-releases-local"
 
   override def pomExtra =
     <licenses>
