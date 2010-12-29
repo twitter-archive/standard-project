@@ -49,7 +49,7 @@ object inline {
   case class InlineDependency(m: ModuleID, project: Project) extends ResolvedLibraryDependency
 
   case class ModuleDescriptor(organization: String, name: String)
-  
+
   val noInlined = new HashSet[ModuleDescriptor]
   val inlined   = new HashSet[ModuleDescriptor]
 }
@@ -100,7 +100,7 @@ trait AdhocInlines extends BasicManagedProject {
     log.error("ad-hoc inlines are incompatible with SBT_INLINE")
     System.exit(1)
   }
-  
+
   case class IvyJar(organization: String, name: String, jar: String)
   // I'm submitting to this sbt antipattern here.  Lean into it.
   lazy val ivyJars = {
@@ -113,14 +113,19 @@ trait AdhocInlines extends BasicManagedProject {
     }}
   }
 
+  def resolvedPaths(relPath: String) = {
+    val search_path = adhocEnvironment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
+    search_path.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
+  }
+
   // Yikes.  this stuff is pretty nasty.
   lazy val resolvedLibraryDependencies = {
     super.libraryDependencies map { module =>
       val relPath    = module.extraAttributes.get("e:relPath").getOrElse(module.name)
       val inlineAttr = module.extraAttributes.get("e:inline").getOrElse("")
 
-      // TODO: use search path & store resolution
-      val path = Path.fromFile("../") / relPath
+      val pathOption = resolvedPaths(relPath).headOption
+
       val descriptor = inline.ModuleDescriptor(module.organization, module.name)
       if (!isInlining) {
         inline.ModuleDependency(module)
@@ -130,8 +135,9 @@ trait AdhocInlines extends BasicManagedProject {
         inline.noInlined += descriptor
         inline.ModuleDependency(module)
       } else if (inline.noInlined contains descriptor) {
-        inline.ModuleDependency(module)        
-      } else if (path.isDirectory) {
+        inline.ModuleDependency(module)
+      } else if (pathOption.isDefined) {
+        val path = pathOption.get
         resolveProject(module.organization, module.name, path) match {
           case Some(project) =>
             // TODO: use logging.
@@ -255,7 +261,7 @@ trait AdhocInlines extends BasicManagedProject {
   //   moduleDependencies map { case inline.ModuleDependency(m) => m }
 
   // only change run classpath?
-  
+
   override def managedClasspath(config: Configuration): PathFinder =
     if (isInlining) {
       super.managedClasspath(config) filter { path =>
