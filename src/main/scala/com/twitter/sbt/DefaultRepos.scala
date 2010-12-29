@@ -25,4 +25,17 @@ trait DefaultRepos extends BasicManagedProject { self: DefaultProject =>
   } else {
     DefaultMavenRepository
   }
+
+  val twitterPrivateIvyRepo = if (defEnv.get("SBT_TWITTER").isDefined) {
+    val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
+    val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
+    val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
+
+    val binariesIvyStyleRepo = Resolver.url("twitter internal old ivy-style paths",
+                                            localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
+
+    new MavenRepository("twitter-private-ivy", "http://binaries.local.twitter.com/maven/")
+  } else {
+    DefaultMavenRepository
+  }
 }

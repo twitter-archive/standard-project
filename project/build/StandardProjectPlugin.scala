@@ -10,10 +10,7 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
 
   val env = jcl.Map(System.getenv())
 
-  override def subversionRepository = env.get("PUBLISH_SVN") match {
-    case Some(s) => Some("http://svn.local.twitter.com/maven-public")
-    case _ => None
-  }
+  override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
 
   val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://maven.twttr.com/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
 
@@ -21,13 +18,6 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
   def artifactoryRoot = "http://artifactory.local.twitter.com"
   def snapshotDeployRepo = "libs-snapshots-local"
   def releaseDeployRepo = "libs-releases-local"
-
-  Credentials(Path.userHome / ".ivy2" / "twitter-credentials", log)
-  val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
-    "Twitter Artifactory" at (artifactoryRoot + "/" + snapshotDeployRepo)
-  } else {
-    "Twitter Artifactory" at (artifactoryRoot + "/" + releaseDeployRepo)
-  }
 
   override def pomExtra =
     <licenses>

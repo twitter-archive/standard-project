@@ -2,6 +2,7 @@ package com.twitter.sbt
 
 import java.io.File
 import scala.collection.jcl
+import java.io.{BufferedReader, InputStreamReader}
 import _root_.sbt._
 
 trait Tartifactory {
@@ -13,18 +14,29 @@ trait Tartifactory {
 
 trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   override def managedStyle = ManagedStyle.Maven
-  Credentials(Path.userHome / ".ivy2" / "twitter-credentials", log)
+
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
     "Twitter Artifactory" at (artifactoryRoot + "/" + snapshotDeployRepo)
   } else {
     "Twitter Artifactory" at (artifactoryRoot + "/" + releaseDeployRepo)
   }
+
+  override def publishTask(module: => IvySbt#Module, publishConfiguration: => PublishConfiguration) = task {
+    val stdinReader = new BufferedReader(new InputStreamReader(System.in))
+    System.out.print("enter your artifactory username: ")
+    val username = stdinReader.readLine
+    System.out.print("\nentire your artifactory password: ")
+    val password = stdinReader.readLine
+    Credentials.add("Artifactory Realm", "artifactory.local.twitter.com", username, password)
+    super.publishTask(module, publishConfiguration).run
+  }
 }
 
 trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   private val tartEnv = jcl.Map(System.getenv())
-  val internalRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
-  val externalRepos = List(
+  def artifactoryRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
+
+  def externalRepos = List(
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
     "twitter.com" at "http://maven.twttr.com/",
     "powermock-api" at "http://powermock.googlecode.com/svn/repo/",
@@ -35,17 +47,43 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: De
     "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
     "jboss" at "http://repository.jboss.org/nexus/content/groups/public/")
 
-  override def repositories: Set[Resolver] = {
-    val useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
-      case Some(v) => v != "false"
-      case _ => true
-    }
+  def internalRepos = if(useInternalRepos) {
+    // set up an ivy style resolver for binaries.local.twitter.com.  I hate this.
+    val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
+    val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
+    val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
+    val internalIvy = Resolver.url("twitter-private-ivy",
+                                   localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
+    val internalM2 = "twitter-private-m2" at "http://binaries.local.twitter.com/maven/"
+    List(internalIvy, internalM2)
+  } else {
+    Nil
+  }
 
+  def useInternalRepos = tartEnv.get("SBT_TWITTER") match {
+    case Some(v) => v == "true"
+    case _ => false
+  }
+
+  def useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
+    case Some(v) => v != "false"
+    case _ => true
+  }
+
+  override def repositories = {
     val projectRepos = if (useArtifactory) {
-      internalRepos
+      artifactoryRepos ++ super.repositories
     } else {
-      externalRepos
+      externalRepos ++ internalRepos ++ super.repositories
     }
-    super.repositories ++ projectRepos
+    Set(projectRepos:_*)
+  }
+
+  override def ivyRepositories = {
+    if (useArtifactory) {
+      Seq(Resolver.defaultLocal(None)) ++ repositories.toList
+    } else {
+      super.ivyRepositories
+    }
   }
 }
