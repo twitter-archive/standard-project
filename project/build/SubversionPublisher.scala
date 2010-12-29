@@ -3,7 +3,6 @@ import java.util.Properties
 import fm.last.ivy.plugins.svnresolver.SvnResolver
 import _root_.sbt._
 
-
 /**
  * Semi-hacky way to publish to a subversion-based maven repository, using ivy-svn.
  */
