@@ -1,9 +1,9 @@
 package com.twitter.sbt
 
-import _root_.sbt.{BasicManagedProject, DefaultProject, Version}
+import _root_.sbt.{BasicManagedProject, BasicDependencyProject, Version}
 import pimpedversion._
 
-trait Versions extends BasicManagedProject with GitHelpers { self: DefaultProject =>
+trait Versions extends BasicManagedProject with GitHelpers {
 
   def versionBumpTask(newVersion: => Version) = task {
     log.info("Current version: " + projectVersion.value)

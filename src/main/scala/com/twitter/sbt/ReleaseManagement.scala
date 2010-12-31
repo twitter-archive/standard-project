@@ -1,10 +1,10 @@
 package com.twitter.sbt
 
-import _root_.sbt.{BasicManagedProject, DefaultProject}
+import _root_.sbt.{BasicManagedProject, BasicDependencyProject}
 import _root_.sbt.Process._
 import pimpedversion._
 
-trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: DefaultProject =>
+trait ReleaseManagement extends BasicManagedProject with GitHelpers {
   def prepareForReleaseTask = task {
     val version = projectVersion.value.toString
     val tags = ("git tag -l | grep " + version) !!

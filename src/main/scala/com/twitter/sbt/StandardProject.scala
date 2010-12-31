@@ -7,9 +7,16 @@ import java.util.jar.Attributes
 import java.text.SimpleDateFormat
 import scala.collection.jcl
 
-class StandardProject(info: ProjectInfo) extends DefaultProject(info) with SourceControlledProject with ReleaseManagement with Versions {
-  override def dependencyPath = "libs"
+trait StandardManagedProject extends BasicManagedProject
+  with SourceControlledProject with ReleaseManagement with Versions
+  with PublishLocalWithMavenStyleBasePattern
+{
   override def disableCrossPaths = true
+  override def managedStyle = ManagedStyle.Maven
+}
+
+class StandardProject(info: ProjectInfo) extends DefaultProject(info) with StandardManagedProject {
+  override def dependencyPath = "libs"
   def timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date)
 
   val environment = jcl.Map(System.getenv())
@@ -24,8 +31,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
 
   // local repositories
   val localLibs = Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
-
-  override def managedStyle = ManagedStyle.Maven
 
   // make a build.properties file and sneak it into the packaged jar.
   def buildPackage = organization + "." + name
@@ -115,6 +120,18 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   lazy val cleanThrift = (cleanTask(thriftJavaPath) && cleanTask(thriftRubyPath)) describedAs("Clean thrift generated folder")
   lazy val compileThriftJava = compileThriftAction("java") describedAs("Compile thrift into java")
   lazy val compileThriftRuby = compileThriftAction("rb") describedAs("Compile thrift into ruby")
+
+  /** override to disable auto-compiling of thrift */
+  def autoCompileThriftEnabled = true
+
+  lazy val autoCompileThriftJava = task {
+    if (autoCompileThriftEnabled) compileThriftJava.run else None
+  }
+
+  lazy val autoCompileThriftRuby = task {
+    if (autoCompileThriftEnabled) compileThriftRuby.run else None
+  }
+
   override def compileOrder = CompileOrder.JavaThenScala
   override def mainSourceRoots = super.mainSourceRoots +++ (outputPath / "gen-java" ##)
 
@@ -172,7 +189,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   }
 
   lazy val checkDepsExist = task {
-    if (!managedDependencyRootPath.asFile.exists) {
+    if (!libraryDependencies.isEmpty && !managedDependencyRootPath.asFile.exists) {
       Some("You must run 'sbt update' first to download dependent jars.")
     } else if (!(organization contains ".")) {
       Some("Your organization name doesn't look like a valid package name. It needs to be something like 'com.example'.")
@@ -181,18 +198,11 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
     }
   }
 
-  override def compileAction = super.compileAction dependsOn(checkDepsExist, compileThriftJava, compileThriftRuby)
+  override def compileAction = super.compileAction dependsOn(checkDepsExist, autoCompileThriftJava, autoCompileThriftRuby)
   override def packageAction = super.packageAction dependsOn(testAction, writeBuildProperties)
 
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
-
-  // allow publish-local to write maven-compatible folders.
-
-  val ivyBasePattern = "[organisation]/[module]/[revision]/ivy-[revision](-[classifier]).[ext]"
-  val localm2 = Resolver.file("localm2", new File(Resolver.userIvyRoot + "/local"))(
-    Patterns(Seq(ivyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
-  override def publishLocalConfiguration = new DefaultPublishConfiguration("localm2", "release", true)
 
   // generate ensime config
   lazy val genEnsime = task (args => {
@@ -233,4 +243,8 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Sourc
   }
 
   log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
+}
+
+class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with StandardManagedProject {
+  override def usesMavenStyleBasePatternInPublishLocalConfiguration = false
 }
