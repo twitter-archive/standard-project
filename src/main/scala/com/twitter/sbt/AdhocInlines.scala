@@ -124,7 +124,7 @@ trait AdhocInlines extends BasicManagedProject {
       val relPath    = module.extraAttributes.get("e:relPath").getOrElse(module.name)
       val inlineAttr = module.extraAttributes.get("e:inline").getOrElse("")
 
-      val pathOption = resolvedPaths(relPath).headOption
+      val pathOption = resolvedPaths(relPath).firstOption
 
       val descriptor = inline.ModuleDescriptor(module.organization, module.name)
       if (!isInlining) {

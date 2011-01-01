@@ -5,21 +5,25 @@ import java.io.{FileWriter, File}
 import java.util.{Date, Properties}
 import java.util.jar.Attributes
 import java.text.SimpleDateFormat
-import scala.collection.jcl
 
 trait StandardManagedProject extends BasicManagedProject
-  with SourceControlledProject with ReleaseManagement with Versions
+  with SourceControlledProject
+  with ReleaseManagement
+  with Versions
   with PublishLocalWithMavenStyleBasePattern
+  with Environmentalist
 {
   override def disableCrossPaths = true
   override def managedStyle = ManagedStyle.Maven
 }
 
-class StandardProject(info: ProjectInfo) extends DefaultProject(info) with StandardManagedProject {
+class StandardProject(info: ProjectInfo) extends DefaultProject(info)
+  with StandardManagedProject
+  with DependencyChecking
+  with CompileThrift
+{
   override def dependencyPath = "libs"
   def timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date)
-
-  val environment = jcl.Map(System.getenv())
 
   // override ivy cache
   override def ivyCacheDirectory = environment.get("SBT_CACHE").map { cacheDir =>
@@ -99,41 +103,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Stand
     "%s-%s.zip".format(name, if (releaseBuild) version else revName)
   }
 
-  // thrift generation.
-  def compileThriftAction(lang: String) = task {
-    import Process._
-    outputPath.asFile.mkdirs()
-    val thriftBin = environment.get("THRIFT_BIN").getOrElse("thrift")
-    val tasks = thriftSources.getPaths.map { path =>
-      execTask { "%s --gen %s -o %s %s".format(thriftBin,lang, outputPath.absolutePath, path) }
-    }
-    if (tasks.isEmpty) None else tasks.reduceLeft { _ && _ }.run
-  }
-
-  def thriftSources = (mainSourcePath / "thrift" ##) ** "*.thrift"
-  def thriftJavaPath = outputPath / "gen-java"
-  def thriftRubyPath = outputPath / "gen-rb"
-
-  // turn on more warnings.
-  override def compileOptions = super.compileOptions ++ Seq(Unchecked)
-
-  lazy val cleanThrift = (cleanTask(thriftJavaPath) && cleanTask(thriftRubyPath)) describedAs("Clean thrift generated folder")
-  lazy val compileThriftJava = compileThriftAction("java") describedAs("Compile thrift into java")
-  lazy val compileThriftRuby = compileThriftAction("rb") describedAs("Compile thrift into ruby")
-
-  /** override to disable auto-compiling of thrift */
-  def autoCompileThriftEnabled = true
-
-  lazy val autoCompileThriftJava = task {
-    if (autoCompileThriftEnabled) compileThriftJava.run else None
-  }
-
-  lazy val autoCompileThriftRuby = task {
-    if (autoCompileThriftEnabled) compileThriftRuby.run else None
-  }
-
   override def compileOrder = CompileOrder.JavaThenScala
-  override def mainSourceRoots = super.mainSourceRoots +++ (outputPath / "gen-java" ##)
 
   // copy scripts.
   val CopyScriptsDescription = "Copies scripts into the dist folder."
@@ -188,21 +158,10 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info) with Stand
     } ++ super.testOptions
   }
 
-  lazy val checkDepsExist = task {
-    if (!libraryDependencies.isEmpty && !managedDependencyRootPath.asFile.exists) {
-      Some("You must run 'sbt update' first to download dependent jars.")
-    } else if (!(organization contains ".")) {
-      Some("Your organization name doesn't look like a valid package name. It needs to be something like 'com.example'.")
-    } else {
-      None
-    }
-  }
-
-  override def compileAction = super.compileAction dependsOn(checkDepsExist, autoCompileThriftJava, autoCompileThriftRuby)
   override def packageAction = super.packageAction dependsOn(testAction, writeBuildProperties)
 
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
-  override def cleanAction = super.cleanAction dependsOn(cleanThrift, cleanDist)
+  override def cleanAction = super.cleanAction dependsOn(cleanDist)
 
   // generate ensime config
   lazy val genEnsime = task (args => {
