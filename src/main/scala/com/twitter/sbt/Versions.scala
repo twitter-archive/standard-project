@@ -4,19 +4,30 @@ import _root_.sbt.{BasicManagedProject, BasicDependencyProject, Version}
 import pimpedversion._
 
 trait Versions extends BasicManagedProject with GitHelpers {
-
   def versionBumpTask(newVersion: => Version) = task {
-    log.info("Current version: " + projectVersion.value)
-    projectVersion.update(newVersion)
-    log.info("New version:     " + projectVersion.value)
-    saveEnvironment()
+    info.parent match {
+      case Some(_: Versions) =>
+        // this is a sub-project, don't change version here, let the parent do it
+        None
 
-    gitCommitSavedEnvironment(Some(projectVersion.value.toString))
+      case _ =>
+        log.info("Current version: " + projectVersion.value)
+        projectVersion.update(newVersion)
+        log.info("New version:     " + projectVersion.value)
+        saveEnvironment()
 
-    None
+        gitCommitSavedEnvironment(Some(projectVersion.value.toString))
+
+        None
+    }
   }
 
-  lazy val versionBump = versionBumpTask(projectVersion.value.incMicro()) named("version-bump") describedAs("bump patch version")
-  lazy val versionBumpMinor = versionBumpTask(projectVersion.value.incMinor()) named("version-bump-minor") describedAs("bump minor version")
-  lazy val versionBumpMajor = versionBumpTask(projectVersion.value.incMajor()) named("version-bump-major") describedAs("bump major version")
+  lazy val versionBump = versionBumpTask(projectVersion.value.incMicro())
+    .describedAs("bump patch version")
+
+  lazy val versionBumpMinor = versionBumpTask(projectVersion.value.incMinor())
+    .describedAs("bump minor version")
+
+  lazy val versionBumpMajor = versionBumpTask(projectVersion.value.incMajor())
+    .describedAs("bump major version")
 }

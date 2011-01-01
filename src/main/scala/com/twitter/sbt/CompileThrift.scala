@@ -2,8 +2,10 @@ package com.twitter.sbt
 
 import _root_.sbt._
 
-
-trait CompileThrift extends DefaultProject with Environmentalist {
+trait CompileThrift extends DefaultProject
+  with GeneratedSources
+  with Environmentalist
+{
   // thrift generation.
   def compileThriftAction(lang: String) = task {
     import Process._
@@ -16,13 +18,7 @@ trait CompileThrift extends DefaultProject with Environmentalist {
   }
 
   def thriftSources = (mainSourcePath / "thrift" ##) ** "*.thrift"
-  def thriftJavaPath = outputPath / "gen-java"
-  def thriftRubyPath = outputPath / "gen-rb"
 
-  // turn on more warnings.
-  override def compileOptions = super.compileOptions ++ Seq(Unchecked)
-
-  lazy val cleanThrift = (cleanTask(thriftJavaPath) && cleanTask(thriftRubyPath)) describedAs("Clean thrift generated folder")
   lazy val compileThriftJava = compileThriftAction("java") describedAs("Compile thrift into java")
   lazy val compileThriftRuby = compileThriftAction("rb") describedAs("Compile thrift into ruby")
 
@@ -30,16 +26,20 @@ trait CompileThrift extends DefaultProject with Environmentalist {
   def autoCompileThriftEnabled = true
 
   lazy val autoCompileThriftJava = task {
-    if (autoCompileThriftEnabled) compileThriftJava.run else None
+    if (autoCompileThriftEnabled) compileThriftJava.run 
+    else {
+      log.info(name+": not auto-compiling thrift-java; you may need to run compile-thift-java manually")
+      None
+    }
   }
 
   lazy val autoCompileThriftRuby = task {
-    if (autoCompileThriftEnabled) compileThriftRuby.run else None
+    if (autoCompileThriftEnabled) compileThriftRuby.run 
+    else {
+      log.info(name+": not auto-compiling thrift-ruby; you may need to run compile-thift-ruby manually")
+      None
+    }
   }
 
-  override def mainSourceRoots = super.mainSourceRoots +++ (outputPath / "gen-java" ##)
-
   override def compileAction = super.compileAction dependsOn(autoCompileThriftJava, autoCompileThriftRuby)
-
-  override def cleanAction = super.cleanAction dependsOn(cleanThrift)
 }
