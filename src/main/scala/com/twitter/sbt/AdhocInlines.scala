@@ -54,7 +54,7 @@ object inline {
   val inlined   = new HashSet[ModuleDescriptor]
 }
 
-trait AdhocInlines extends BasicManagedProject {
+trait AdhocInlines extends BasicManagedProject with Environmentalist {
   // TODO: make a registry for these changes.
   class RichModuleID(m: ModuleID) {
     def noInline() = m.extra("inline" -> "0")
@@ -93,10 +93,14 @@ trait AdhocInlines extends BasicManagedProject {
       }
     }
 
-  val adhocEnvironment = jcl.Map(System.getenv())
-  val isInlining = adhocEnvironment.get("SBT_ADHOC_INLINE").isDefined
+  val isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
 
-  if (adhocEnvironment.get("SBT_INLINE").isDefined) {
+  if (isInlining)
+    log.info("ad-hoc inlines enabled for " + name)
+  else
+    log.info("ad-hoc inlines NOT currently enabled for " + name + ", set SBT_ADHOC_INLINE=1 to enable")
+
+  if (environment.get("SBT_INLINE").isDefined) {
     log.error("ad-hoc inlines are incompatible with SBT_INLINE")
     System.exit(1)
   }
@@ -114,7 +118,7 @@ trait AdhocInlines extends BasicManagedProject {
   }
 
   def resolvedPaths(relPath: String) = {
-    val search_path = adhocEnvironment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
+    val search_path = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
     search_path.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
   }
 

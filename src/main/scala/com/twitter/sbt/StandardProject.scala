@@ -57,3 +57,8 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
 class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with StandardManagedProject {
   override def usesMavenStyleBasePatternInPublishLocalConfiguration = false
 }
+
+class StandardLibraryProject(info: ProjectInfo) extends StandardProject(info)
+
+class StandardServiceProject(info: ProjectInfo) extends StandardProject(info)
+  with PackageDist
