@@ -42,7 +42,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   override def compileOrder = CompileOrder.JavaThenScala
 
   // turn on more warnings.
-  override def compileOptions = super.compileOptions ++ Seq(Unchecked)
+  override def compileOptions = super.compileOptions ++ Seq(Unchecked) ++ compileOptions("-deprecation")
 
   override def testOptions = {
     (environment.get("NO_TESTS") orElse environment.get("NO_TEST")).toList
