@@ -95,10 +95,11 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
   val isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
 
-  if (isInlining)
+  if (isInlining) {
     log.info("ad-hoc inlines enabled for " + name)
-  else
+  } else {
     log.info("ad-hoc inlines NOT currently enabled for " + name + ", set SBT_ADHOC_INLINE=1 to enable")
+  }
 
   if (environment.get("SBT_INLINE").isDefined) {
     log.error("ad-hoc inlines are incompatible with SBT_INLINE")

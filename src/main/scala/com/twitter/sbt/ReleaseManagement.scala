@@ -49,7 +49,11 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers {
 
   def publishReleaseTask = task {
     // publishing local is required first with subprojects for hard to understand reasons
-    val cmd = if (!subProjects.isEmpty) "sbt +publish-local +publish" else "sbt +publish"
+    val cmd = if (!subProjects.isEmpty) {
+      "sbt +publish-local +publish"
+    } else {
+      "sbt +publish"
+    }
     val exitCode = (cmd !)
     if (exitCode == 0) None
     else Some(cmd + " exit code " + exitCode)

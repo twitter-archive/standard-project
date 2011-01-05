@@ -18,6 +18,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   with StandardManagedProject
   with DependencyChecking
   with BuildProperties
+  with CompileThrift
 {
   override def dependencyPath = "libs"
 
@@ -58,7 +59,14 @@ class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with 
   override def usesMavenStyleBasePatternInPublishLocalConfiguration = false
 }
 
+/**
+ * Nothing special here yet, but this class could accumulate traits that
+ * are specific to libraries
+ */
 class StandardLibraryProject(info: ProjectInfo) extends StandardProject(info)
 
+/**
+ * A standard project type for building services.
+ */
 class StandardServiceProject(info: ProjectInfo) extends StandardProject(info)
   with PackageDist
