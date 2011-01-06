@@ -4,7 +4,7 @@ import java.io.File
 import scala.collection.jcl
 import _root_.sbt._
 
-trait DefaultRepos extends BasicManagedProject { self: DefaultProject =>
+trait DefaultRepos extends BasicManagedProject {
 
   val defEnv = jcl.Map(System.getenv())
 

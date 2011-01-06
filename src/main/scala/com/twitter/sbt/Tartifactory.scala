@@ -12,7 +12,7 @@ trait Tartifactory {
   def releaseDeployRepo = "libs-releases-local"
 }
 
-trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self: DefaultProject =>
+trait TartifactoryPublisher extends BasicManagedProject with Tartifactory {
   override def managedStyle = ManagedStyle.Maven
 
   val publishTo = if (version.toString.endsWith("SNAPSHOT")) {
@@ -32,7 +32,7 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self
   }
 }
 
-trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: DefaultProject =>
+trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
   private val tartEnv = jcl.Map(System.getenv())
   val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
   val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")

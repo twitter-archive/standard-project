@@ -3,7 +3,7 @@ package com.twitter.sbt
 import _root_.sbt._
 import org.apache.ivy.plugins._
 
-trait CorrectDependencies extends BasicManagedProject { self: DefaultProject =>
+trait CorrectDependencies extends BasicManagedProject {
   override def ivySbt: IvySbt = {
     val i = super.ivySbt
     i.withIvy { apacheIvy =>

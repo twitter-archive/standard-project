@@ -29,7 +29,7 @@ class LatestCompatibleWarningsManager extends AbstractConflictManager {
   }
 }
 
-trait NoisyDependencies extends BasicManagedProject { self: DefaultProject =>
+trait NoisyDependencies extends BasicManagedProject { self: BasicDependencyProject =>
 
   override def ivySbt: IvySbt = {
     val i = super.ivySbt
