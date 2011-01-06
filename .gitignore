@@ -6,3 +6,5 @@ project/plugins/project/
 src/main/scala/com/twitter/sbt/BuildInfo.scala
 
 /standard-project.tmproj
+*.iml
+.idea
