@@ -34,7 +34,12 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory { self
 
 trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: DefaultProject =>
   private val tartEnv = jcl.Map(System.getenv())
-  def artifactoryRepos = List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
+  val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
+  val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
+
+  def artifactoryRepos = List(Resolver.url("artifactory.remote.ivy", new java.net.URL(artifactoryRoot + "/" + proxyRepo))
+                              (Patterns(ivyXmlPatterns, ivyArtifactPatterns, false)),
+                              "artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
 
   def externalRepos = List(
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
@@ -50,8 +55,6 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory { self: De
   def internalRepos = if(useInternalRepos) {
     // set up an ivy style resolver for binaries.local.twitter.com.  I hate this.
     val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
-    val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
-    val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
     val internalIvy = Resolver.url("twitter-private-ivy",
                                    localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
     val internalM2 = "twitter-private-m2" at "http://binaries.local.twitter.com/maven/"
