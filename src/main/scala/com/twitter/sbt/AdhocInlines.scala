@@ -38,6 +38,12 @@ object ProjectCache {
   }
 }
 
+object RawProjectCache {
+  private[this] val cache = new HashMap[String, Project]
+  def apply(path: Path)(make: => Project) = cache.getOrElseUpdate(path.absolutePath, make)
+}
+
+
 object inline {
   // TODO: push as much of this into per-project caches as
   // possible. we need the global register to filter the classpath--
@@ -72,7 +78,7 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
   private def resolveProject(organization: String, name: String, path: Path) =
     ProjectCache(organization, name) {
       if ((path / "project" / "build.properties").exists) {
-        val rawProject = project(path)
+        val rawProject = RawProjectCache(path) { project(path) }
         val foundProject =
           if (rawProject.name != name) {
             // Try to find it in a subproject.
