@@ -55,10 +55,15 @@ object inline {
 }
 
 trait AdhocInlines extends BasicManagedProject with Environmentalist {
+  private[this] lazy val relPaths = new HashMap[(String, String), String]
+
   // TODO: make a registry for these changes.
   class RichModuleID(m: ModuleID) {
-    def noInline() = m.extra("inline" -> "0")
-    def withRelPath(relPath: String) = m.extra("relPath" -> relPath)
+    // This is side effecting. Nasty, but it gets the job done.
+    def relativePath(name: String) = {
+      relPaths((m.organization, m.name)) = name
+      m
+    }
   }
 
   implicit def moduleIDToRichModuleID(m: ModuleID) = new RichModuleID(m)
@@ -132,18 +137,13 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
   // Yikes.  this stuff is pretty nasty.
   lazy val resolvedLibraryDependencies = {
     super.libraryDependencies map { module =>
-      val relPath    = module.extraAttributes.get("e:relPath").getOrElse(module.name)
-      val inlineAttr = module.extraAttributes.get("e:inline").getOrElse("")
-
+      // We only need to do relPath here, because resolveProject()
+      // will search subProjects too.
+      val relPath = relPaths.get((module.organization, module.name)).getOrElse(module.name)
       val pathOption = resolvedPaths(relPath).firstOption
 
       val descriptor = inline.ModuleDescriptor(module.organization, module.name)
       if (!isInlining) {
-        inline.ModuleDependency(module)
-      } else if (inlineAttr == "0") {
-        if (inline.inlined contains descriptor)
-          log.error("%s noInlined() here, but inlined elsewhere".format(descriptor))
-        inline.noInlined += descriptor
         inline.ModuleDependency(module)
       } else if (inline.noInlined contains descriptor) {
         inline.ModuleDependency(module)
