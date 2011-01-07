@@ -95,10 +95,16 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
   val isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
 
+  // We use ``info.projectDirectory'' instead of ``name'' here because
+  // for subprojects, names aren't initialized as of this point
+  // [seemingly not before the constructor has finished running].
   if (isInlining) {
-    log.info("ad-hoc inlines enabled for " + name)
+    log.info("ad-hoc inlines enabled for " + info.projectDirectory)
   } else {
-    log.info("ad-hoc inlines NOT currently enabled for " + name + ", set SBT_ADHOC_INLINE=1 to enable")
+    log.info(
+      ("ad-hoc inlines NOT currently enabled " +
+       "for %s set SBT_ADHOC_INLINE=1 to enable")
+      .format(info.projectDirectory))
   }
 
   if (environment.get("SBT_INLINE").isDefined) {
@@ -240,7 +246,6 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
   override def subProjects = {
     val mapped =
-      // XXX - these should be pre-resolved, just name->project
       inlineDependencies map { case inline.InlineDependency(m, project) =>
         m.name -> project
       }
