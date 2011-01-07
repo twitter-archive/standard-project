@@ -1,6 +1,6 @@
 package com.twitter.sbt
 
-trait IntegrationTests extends StandardProject {
+trait IntegrationSpecs extends StandardProject {
   val integrationTestSuffix = "IntegrationSpec"
   lazy val integrationTestOptions: Seq[TestOption] =
     TestListeners(testListeners) :: TestFilter(_ endsWith integrationTestSuffix) :: Nil
