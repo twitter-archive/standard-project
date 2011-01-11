@@ -68,6 +68,7 @@ class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with 
  * are specific to libraries
  */
 class StandardLibraryProject(info: ProjectInfo) extends StandardProject(info)
+  with PackageDist
 
 /**
  * A standard project type for building services.
