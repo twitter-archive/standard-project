@@ -7,8 +7,7 @@ import scala.collection.mutable.{HashSet, HashMap}
 import java.io.File
 
 import org.apache.ivy.Ivy
-import org.apache.ivy.core.module.descriptor.{
-  ModuleDescriptor, DefaultModuleDescriptor}
+import org.apache.ivy.core.module.descriptor.{ModuleDescriptor, DefaultModuleDescriptor}
 import org.apache.ivy.core.retrieve.RetrieveOptions
 import org.apache.ivy.core.resolve.ResolveOptions
 import org.apache.ivy.core.resolve.IvyNode
@@ -17,6 +16,7 @@ import org.apache.ivy.core.LogOptions
 // TODO: check versions, display discrepancies, etc.
 // TODO: check that it's an actual sbt project there, otherwise skip (xrayspecs)
 // TODO: check versions
+// TODO: show whole project graph
 
 import _root_.sbt._
 
@@ -68,6 +68,12 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     // This is side effecting. Nasty, but it gets the job done.
     def relativePath(name: String) = {
       relPaths((m.organization, m.name)) = name
+      m
+    }
+
+    def noInline() = {
+      // TODO: should noInlines really be global?
+      inline.noInlined += inline.ModuleDescriptor(m.organization, m.name)
       m
     }
   }
@@ -136,49 +142,65 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
   }
 
   def resolvedPaths(relPath: String) = {
-    val search_path = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
-    search_path.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
+    val searchPath = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
+    searchPath.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
   }
 
-  // Yikes.  this stuff is pretty nasty.
-  lazy val resolvedLibraryDependencies = {
-    super.libraryDependencies map { module =>
-      // We only need to do relPath here, because resolveProject()
-      // will search subProjects too.
-      val relPath = relPaths.get((module.organization, module.name)).getOrElse(module.name)
-      val pathOption = resolvedPaths(relPath).firstOption
+  lazy val resolvedLibraryDependencies =
+    if (!isInlining) {
+      super.libraryDependencies map inline.ModuleDependency
+    } else {
+      super.libraryDependencies map { module =>
+        val descriptor = inline.ModuleDescriptor(module.organization, module.name)
+        if (inline.noInlined contains descriptor) {
+          inline.ModuleDependency(module)
+        } else {
+          val relPath =
+            relPaths.get((module.organization, module.name)).getOrElse(module.name)
 
-      val descriptor = inline.ModuleDescriptor(module.organization, module.name)
-      if (!isInlining) {
-        inline.ModuleDependency(module)
-      } else if (inline.noInlined contains descriptor) {
-        inline.ModuleDependency(module)
-      } else if (pathOption.isDefined) {
-        val path = pathOption.get
-        resolveProject(module.organization, module.name, path) match {
-          case Some(project) =>
-            // TODO: use logging.
-            if (project.version.toString != module.revision) {
-              log.warn("version mismatch for %s (%s is inlined, %s is requested)".format(
-                module.name, project.version.toString, module.revision))
-            }
+          resolvedPaths(relPath).firstOption match {
+            case Some(path) =>
+              resolveProject(module.organization, module.name, path) match {
+                case Some(project) =>
+                  // XXX: we can't do this test here because of sbt
+                  // architecture idiocy. in the cascade of lazily
+                  // initiated values that have side effects, querying
+                  // ``version'' at this juncture attempts retrieving
+                  // a hitherto undefined property when using
+                  // subprojects (those without their own
+                  // ``build.properties'' files). Sigh. Sigh. Sigh.
 
-            inline.inlined += descriptor
-            inline.InlineDependency(module, project)
+                  // if (project.version.toString != module.revision) {
+                  //   log.warn("version mismatch for %s (%s is inlined, %s is requested)".format(
+                  //     module.name, project.version.toString, module.revision))
+                  // }
 
-          case None =>
-            inline.ModuleDependency(module)
+                  inline.inlined += descriptor
+                  inline.InlineDependency(module, project)
+               
+                case None =>
+                  inline.ModuleDependency(module)
+              }
+            case None =>
+              inline.ModuleDependency(module)
+          }
         }
-      } else {
-        inline.ModuleDependency(module)
       }
     }
-  }
 
   lazy val moduleDependencies =
-    resolvedLibraryDependencies.filter(_.isInstanceOf[inline.ModuleDependency])
+    resolvedLibraryDependencies.flatMap {
+      case inline.ModuleDependency(module) => Some(module)
+      case _ => None
+    }
+
   lazy val inlineDependencies =
-    resolvedLibraryDependencies.filter(_.isInstanceOf[inline.InlineDependency])
+    resolvedLibraryDependencies.flatMap {
+      case inline.InlineDependency(module, project) => Some((module, project))
+      case _ => None
+    }
+
+  override def libraryDependencies = Set() ++ moduleDependencies
 
   lazy val showClasspath = task {
     log.info(fullClasspath(Configurations.Compile).toString)
@@ -187,15 +209,21 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
   lazy val showLibraryDependencies = task {
     log.info("Inlined dependencies:")
-    inlineDependencies foreach { case inline.InlineDependency(m, project) =>
+    inlineDependencies foreach { case (m, project) =>
       log.info("  %s @ %s".format(m, project.info.projectPath))
     }
 
     log.info("Library dependencies:")
-    moduleDependencies foreach { case inline.ModuleDependency(m) =>
-      log.info("  %s".format(m))
-    }
+    moduleDependencies foreach { m => log.info("  %s".format(m)) }
 
+    None
+  }
+
+  lazy val showProjectClosure = task {
+    log.info("Project closure:")
+    projectClosure foreach { project =>
+      println("  " + project)
+    }
     None
   }
 
@@ -252,31 +280,12 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
   override def subProjects = {
     val mapped =
-      inlineDependencies map { case inline.InlineDependency(m, project) =>
+      inlineDependencies map { case (m, project) =>
         m.name -> project
       }
 
     Map() ++ super.subProjects ++ mapped
   }
-
-  // To make sure we publish the correct POMs, and always have the
-  // // jars at our avail.
-  // override def inlineSettings = {
-  //   val parent = super.inlineSettings
-  //   val inlinedDeps = inlineDependencies map { case inline.InlineDependency(m, _) => m }
-
-  //   new InlineConfiguration(
-  //     parent.module, parent.dependencies ++ inlinedDeps,
-  //     parent.ivyXML, parent.configurations, parent.defaultConfiguration,
-  //     parent.ivyScala, parent.validate)
-  // }
-
-  // do we want this? maybe?
-
-  // override def libraryDependencies =
-  //   moduleDependencies map { case inline.ModuleDependency(m) => m }
-
-  // only change run classpath?
 
   override def managedClasspath(config: Configuration): PathFinder =
     if (isInlining) {
