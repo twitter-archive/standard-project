@@ -8,6 +8,9 @@ class WrappedDefaultProject(val underlying: DefaultProject)
   extends StandardProject(underlying.info)
 {
   override def name                = underlying.name
+	override def version             = underlying.version
+  override def organization        = underlying.organization
+  override def scratch             = underlying.scratch
   override def libraryDependencies = underlying.libraryDependencies
   override def subProjects         = Map() ++ underlying.subProjects
 
@@ -21,56 +24,54 @@ class WrappedDefaultProject(val underlying: DefaultProject)
     underlying.managedClasspath(config)
 
   // Properties.
-          // override def parentEnvironment = underlying.parentEnvironment
-
   override def property[T](implicit manifest: Manifest[T], format: Format[T]) = {
-    lazy val p = underlying.property(manifest, format)
-    new Property[T] with Proxy {
-      def self = p
-      def update(v: T) { self.update(v) }
-      def resolve = self.resolve
-    }
-  }
-
+		lazy val p = underlying.property(manifest, format)
+		new Property[T] with Proxy {
+			def self = p
+			def update(v: T) { self.update(v) }
+			def resolve = self.resolve
+		}
+	}
+	 
 	override def propertyLocal[T](implicit manifest: Manifest[T], format: Format[T]) = {
-    lazy val p = underlying.propertyLocal(manifest, format)
-    new Property[T] with Proxy {
-      def self = p
-      def update(v: T) { self.update(v) }
-      def resolve = self.resolve
-    }
-  }
-
+		lazy val p = underlying.propertyLocal(manifest, format)
+		new Property[T] with Proxy {
+			def self = p
+			def update(v: T) { self.update(v) }
+			def resolve = self.resolve
+		}
+	}
+	 
 	override def propertyOptional[T]
-      (defaultValue: => T)
-      (implicit manifest: Manifest[T], format: Format[T]) = {
-    lazy val p = underlying.propertyOptional(defaultValue)(manifest, format)
-    new Property[T] with Proxy {
-      def self = p
-      def update(v: T) { self.update(v) }
-      def resolve = self.resolve
-    }
-  }
-
+			(defaultValue: => T)
+			(implicit manifest: Manifest[T], format: Format[T]) = {
+		lazy val p = underlying.propertyOptional(defaultValue)(manifest, format)
+		new Property[T] with Proxy {
+			def self = p
+			def update(v: T) { self.update(v) }
+			def resolve = self.resolve
+		}
+	}
+	 
 	override def system[T](propName: String)(implicit format: Format[T]) = {
-    lazy val p = underlying.system(propName)(format)
-    new Property[T] with Proxy {
-      def self = p
-      def update(v: T) { self.update(v) }
-      def resolve = self.resolve
-    }
-  }
-
+		lazy val p = underlying.system(propName)(format)
+		new Property[T] with Proxy {
+			def self = p
+			def update(v: T) { self.update(v) }
+			def resolve = self.resolve
+		}
+	}
+	 
 	override def systemOptional[T]
-      (propName: String, defaultValue: => T)
-      (implicit format: Format[T]) = {
-    lazy val p = underlying.systemOptional(propName, defaultValue)(format)
-    new Property[T] with Proxy {
-      def self = p
-      def update(v: T) { self.update(v) }
-      def resolve = self.resolve
-    }
-  }
+			(propName: String, defaultValue: => T)
+			(implicit format: Format[T]) = {
+		lazy val p = underlying.systemOptional(propName, defaultValue)(format)
+		new Property[T] with Proxy {
+			def self = p
+			def update(v: T) { self.update(v) }
+			def resolve = self.resolve
+		}
+	}
 
   // TODO: as needed.
 }

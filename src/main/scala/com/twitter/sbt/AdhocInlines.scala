@@ -63,6 +63,9 @@ object inline {
 trait AdhocInlines extends BasicManagedProject with Environmentalist {
   private[this] lazy val relPaths = new HashMap[(String, String), String]
 
+  // For future use:
+  val projectIsInlined = true
+
   // TODO: make a registry for these changes.
   class RichModuleID(m: ModuleID) {
     // This is side effecting. Nasty, but it gets the job done.
