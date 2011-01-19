@@ -26,17 +26,17 @@ trait CompileThrift extends DefaultProject
   def autoCompileThriftEnabled = true
 
   lazy val autoCompileThriftJava = task {
-    if (autoCompileThriftEnabled) compileThriftJava.run 
+    if (autoCompileThriftEnabled) compileThriftJava.run
     else {
-      log.info(name+": not auto-compiling thrift-java; you may need to run compile-thift-java manually")
+      log.info(name+": not auto-compiling thrift-java; you may need to run compile-thrift-java manually")
       None
     }
   }
 
   lazy val autoCompileThriftRuby = task {
-    if (autoCompileThriftEnabled) compileThriftRuby.run 
+    if (autoCompileThriftEnabled) compileThriftRuby.run
     else {
-      log.info(name+": not auto-compiling thrift-ruby; you may need to run compile-thift-ruby manually")
+      log.info(name+": not auto-compiling thrift-ruby; you may need to run compile-thrift-ruby manually")
       None
     }
   }
