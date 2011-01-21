@@ -13,6 +13,7 @@ class WrappedDefaultProject(val underlying: DefaultProject)
   override def scratch             = underlying.scratch
   override def libraryDependencies = underlying.libraryDependencies
   override def subProjects         = Map() ++ underlying.subProjects
+  override def repositories        = underlying.repositories
 
   override def compileOrder = underlying.compileOrder
   override def managedStyle = underlying.managedStyle
