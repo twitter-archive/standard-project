@@ -46,7 +46,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   override def compileOptions = super.compileOptions ++
     Seq(Unchecked) ++
     compileOptions("-encoding", "utf8") ++
-    compileOptions("-Xmigration") ++
     compileOptions("-deprecation")
 
   override def testOptions = {
