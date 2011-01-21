@@ -15,6 +15,8 @@ class WrappedDefaultProject(val underlying: DefaultProject)
   override def subProjects         = Map() ++ underlying.subProjects
   override def repositories        = underlying.repositories
 
+  override def compileOptions =
+    underlying.compileOptions map { opt => CompileOption(opt.asString) }
   override def compileOrder = underlying.compileOrder
   override def managedStyle = underlying.managedStyle
 
