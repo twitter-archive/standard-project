@@ -84,6 +84,9 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
   implicit def moduleIDToRichModuleID(m: ModuleID) = new RichModuleID(m)
   override def shouldCheckOutputDirectories = false
 
+  def isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
+  def inlineSearchPath = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
+
   private def resolveProject(organization: String, name: String, path: Path) =
     ProjectCache(organization, name) {
       if ((path / "project" / "build.properties").exists) {
@@ -113,7 +116,6 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
       }
     }
 
-  val isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
 
   // We use ``info.projectDirectory'' instead of ``name'' here because
   // for subprojects, names aren't initialized as of this point
@@ -145,8 +147,7 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
   }
 
   def resolvedPaths(relPath: String) = {
-    val searchPath = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
-    searchPath.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
+    inlineSearchPath.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
   }
 
   lazy val resolvedLibraryDependencies =
