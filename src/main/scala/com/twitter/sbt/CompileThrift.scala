@@ -6,11 +6,12 @@ trait CompileThrift extends DefaultProject
   with GeneratedSources
   with Environmentalist
 {
+  def thriftBin = environment.get("THRIFT_BIN").getOrElse("thrift")
+
   // thrift generation.
   def compileThriftAction(lang: String) = task {
     import Process._
     outputPath.asFile.mkdirs()
-    val thriftBin = environment.get("THRIFT_BIN").getOrElse("thrift")
     val tasks = thriftSources.getPaths.map { path =>
       execTask { "%s --gen %s -o %s %s".format(thriftBin,lang, outputPath.absolutePath, path) }
     }
