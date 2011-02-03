@@ -6,7 +6,7 @@ import _root_.sbt._
 /**
  * Semi-hacky way to publish to a subversion-based maven repository, using ivy-svn.
  */
-trait SubversionPublisher extends BasicManagedProject { self: DefaultProject =>
+trait SubversionPublisher extends BasicManagedProject { self: BasicDependencyProject =>
   private val prefs = new Properties()
   private val prefsFilename = System.getProperty("user.home") + "/.svnrepo"
 

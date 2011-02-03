@@ -1,10 +1,10 @@
 package com.twitter.sbt
 
-import _root_.sbt.{BasicManagedProject, DefaultProject}
+import _root_.sbt.{BasicManagedProject, BasicDependencyProject}
 import _root_.sbt.Process._
 import pimpedversion._
 
-trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: DefaultProject =>
+trait ReleaseManagement extends BasicManagedProject with GitHelpers {
   def prepareForReleaseTask = task {
     val version = projectVersion.value.toString
     val tags = ("git tag -l | grep " + version) !!
@@ -48,15 +48,30 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers { self: Defa
   lazy val finalizeRelease = finalizeReleaseTask
 
   def publishReleaseTask = task {
-    val exitCode = ("sbt +publish" !)
-    if (exitCode == 0) None else Some("sbt +publish exit code " + exitCode)
+    // publishing local is required first with subprojects for hard to understand reasons
+    val cmd = if (!subProjects.isEmpty) {
+      "sbt +publish-local +publish"
+    } else {
+      "sbt +publish"
+    }
+    val exitCode = (cmd !)
+    if (exitCode == 0) None
+    else Some(cmd + " exit code " + exitCode)
   }
 
   val PublishReleaseDescription = "Publish a release to maven. commits and tags version in git."
-  lazy val publishRelease =
-    task { log.info("Publishing new release: " + projectVersion.value.stripSnapshot()); None } &&
-    prepareForReleaseTask &&
-    publishReleaseTask &&
-    finalizeReleaseTask describedAs
-    PublishReleaseDescription
+
+  lazy val publishRelease = {
+    (info.parent match {
+      case Some(_: ReleaseManagement) =>
+        // skip, let parent do the work
+        task { None }
+
+      case _ =>
+        task { log.info("Publishing new release: " + projectVersion.value.stripSnapshot()); None } &&
+        prepareForReleaseTask &&
+        publishReleaseTask &&
+        finalizeReleaseTask
+    }) describedAs PublishReleaseDescription
+  }
 }

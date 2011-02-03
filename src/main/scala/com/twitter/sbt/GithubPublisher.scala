@@ -5,7 +5,7 @@ import java.io.File
 import Process._
 
 // use github for publishing (not finished yet)
-trait GithubPublisher extends BasicManagedProject { self: DefaultProject =>
+trait GithubPublisher extends BasicManagedProject {
   val githubFolder = new File(Resolver.userIvyRoot, "github")
   val githubLocalRepo = Resolver.file("github-local", githubFolder)(Resolver.mavenStylePatterns) mavenStyle()
   val git = "git --git-dir=" + githubFolder + "/.git --work-tree=" + githubFolder
