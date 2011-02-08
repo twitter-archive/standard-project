@@ -15,6 +15,59 @@ class WrappedDefaultProject(val underlying: DefaultProject)
   override def subProjects         = Map() ++ underlying.subProjects
   override def repositories        = underlying.repositories
 
+  // Ivy stuff.
+	override def ivyUpdateConfiguration = underlying.ivyUpdateConfiguration
+  override def ivyUpdateLogging       = underlying.ivyUpdateLogging
+  override def ivyRepositories        = underlying.ivyRepositories
+  override def otherRepositories      = underlying.otherRepositories
+  override def ivyValidate            = underlying.ivyValidate
+  override def ivyScala               = underlying.ivyScala
+  override def ivyCacheDirectory      = underlying.ivyCacheDirectory
+  override def ivyPaths               = underlying.ivyPaths
+  override def inlineIvyConfiguration = underlying.inlineIvyConfiguration
+
+  override def ivyConfiguration    = underlying.ivyConfiguration
+  override def ivySbt              = underlying.ivySbt
+  override def ivyModule           = underlying.ivyModule
+
+  override def updateTask(module: => IvySbt#Module, configuration: => UpdateConfiguration) = task {
+    underlying.updateTask(module, configuration).run
+  }
+
+  override def moduleSettings        = underlying.moduleSettings
+  override def inlineSettings        = underlying.inlineSettings
+  override def compatTestFramework   = underlying.compatTestFramework
+  override def defaultModuleSettings = underlying.defaultModuleSettings
+  override def externalSettings      = underlying.externalSettings
+  override def outputPattern         = underlying.outputPattern
+  override def ivyXML                = underlying.ivyXML
+  override def pomExtra              = underlying.pomExtra
+  override def ivyConfigurations     = underlying.ivyConfigurations
+
+  override def extraDefaultConfigurations      = underlying.extraDefaultConfigurations
+  override def useIntegrationTestConfiguration = underlying.useIntegrationTestConfiguration
+  override def defaultConfiguration            = underlying.defaultConfiguration
+  override def useMavenConfigurations          = underlying.useMavenConfigurations
+  override def useDefaultConfigurations        = underlying.useDefaultConfigurations
+  
+	
+	override def updateModuleSettings  = underlying.updateModuleSettings 
+	override def updateIvyModule			 = underlying.updateIvyModule			
+	override def deliverModuleSettings = underlying.deliverModuleSettings
+	override def deliverIvyModule			 = underlying.deliverIvyModule			
+	override def publishModuleSettings = underlying.publishModuleSettings
+	override def publishIvyModule			 = underlying.publishIvyModule			
+
+	// override protected def updateAction               = underlying.updateAction
+	// override protected def cleanLibAction             = underlying.cleanLibAction
+	// override protected def cleanCacheAction           = underlying.cleanCacheAction
+	// override protected def deliverProjectDependencies = underlying.deliverProjectDependencies
+
+	override def packageToPublishActions = underlying.packageToPublishActions
+	override lazy val makePom = task {
+    underlying.makePom.run
+  }
+
   override def compileOptions =
     underlying.compileOptions map { opt => CompileOption(opt.asString) }
   override def compileOrder = underlying.compileOrder

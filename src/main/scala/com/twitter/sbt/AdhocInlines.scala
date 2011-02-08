@@ -150,7 +150,7 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     inlineSearchPath.split(":").map{ file => Path.fromFile(file) / relPath }.filter(_.isDirectory)
   }
 
-  lazy val resolvedLibraryDependencies =
+  private[this] lazy val resolvedLibraryDependencies =
     if (!isInlining) {
       super.libraryDependencies map inline.ModuleDependency
     } else {
@@ -192,13 +192,13 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
       }
     }
 
-  lazy val moduleDependencies =
+  private[this] lazy val moduleDependencies =
     resolvedLibraryDependencies.flatMap {
       case inline.ModuleDependency(module) => Some(module)
       case _ => None
     }
 
-  lazy val inlineDependencies =
+  private[this] lazy val inlineDependencies =
     resolvedLibraryDependencies.flatMap {
       case inline.InlineDependency(module, project) => Some((module, project))
       case _ => None
@@ -237,12 +237,18 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
       case p => p
     }
 
-	private def resolve(logging: UpdateLogging.Value)(
+  // Use the full set of dependencies (super.libraryDependencies) for
+  // module updates.
+  override def inlineSettings = new InlineConfiguration(
+    projectID, super.libraryDependencies, ivyXML, ivyConfigurations,
+    defaultConfiguration, ivyScala, ivyValidate)
+
+  private def resolve(logging: UpdateLogging.Value)(
     ivy: Ivy, module: DefaultModuleDescriptor,
     defaultConf: String) =
 	{
 		val resolveOptions = new ResolveOptions
-		resolveOptions.setLog(LogOptions.LOG_QUIET /*LOG_DEFAULT*/)
+		resolveOptions.setLog(ivyLogLevel(logging))
 		val resolveReport = ivy.resolve(module, resolveOptions)
 		if(resolveReport.hasError) {
 			throw new ResolveException(
@@ -279,8 +285,18 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 		}
 	}
 
-	override def updateTask(module: => IvySbt#Module, configuration: => UpdateConfiguration) =
-		ivyTask { update(module, configuration) }
+	import UpdateLogging.{Quiet, Full, DownloadOnly}
+	import LogOptions.{LOG_QUIET, LOG_DEFAULT, LOG_DOWNLOAD_ONLY}
+	private def ivyLogLevel(level: UpdateLogging.Value) =
+		level match {
+			case Quiet => LOG_QUIET
+			case DownloadOnly => LOG_DOWNLOAD_ONLY
+			case Full => LOG_DEFAULT
+		}
+
+  override def updateTask(module: => IvySbt#Module, configuration: => UpdateConfiguration) = {
+	  ivyTask { update(module, configuration) }
+  }
 
   override def subProjects = {
     val mapped =
