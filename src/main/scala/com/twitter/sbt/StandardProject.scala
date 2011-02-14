@@ -56,6 +56,43 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   override def packageAction = super.packageAction dependsOn(testAction)
 
   log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
+
+  // Optional ramdisk.
+  private[this] val ramdiskRoot = environment.get("SBT_RAMDISK_ROOT")
+  private[this] val ramdiskTargetName = "target-ramdisk"
+  for (ramdiskRoot <- ramdiskRoot) {
+    val ramdiskPath = new File("%s/%s".format(ramdiskRoot, name))
+    log.info("Compiling to ramdisk at %s".format(ramdiskPath))
+
+    val target = new File(ramdiskTargetName)
+    val canonicalPath = target.getCanonicalPath
+    val absolutePath = target.getAbsolutePath
+
+    if (target.exists && canonicalPath != ramdiskRoot) {
+      if (target.isFile || absolutePath != canonicalPath) {
+        log.info("Deleting existing symlink at %s".format(target))
+        target.delete()
+      } else {
+        log.info("Removing existing directory at %s".format(target))
+        FileUtilities.clean(Path.fromFile(target), log)
+      }
+    }
+
+    // Make symlink.
+    if (!target.exists) {
+      import Process._
+      log.info("Creating ramdisk build symlink %s".format(ramdiskPath))
+      ramdiskPath.mkdirs()
+      (execTask { "ln -s %s %s".format(ramdiskPath, ramdiskTargetName) }).run
+    }
+  }
+
+  override def outputRootPath =
+    if (ramdiskRoot.isDefined)
+      "target-ramdisk": Path
+    else
+      super.outputRootPath
+
 }
 
 class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with StandardManagedProject {
