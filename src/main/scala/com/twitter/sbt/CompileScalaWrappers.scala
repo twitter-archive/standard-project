@@ -3,6 +3,9 @@ package com.twitter.sbt
 import _root_.sbt._
 import java.io._
 
+/**
+ * This code is relatively young.  It's usable for some purposes now, but you might need an adventurous spirit to get involved at this stage.
+ */
 trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def scalaThriftTargetNamespace: String
   def scalaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
