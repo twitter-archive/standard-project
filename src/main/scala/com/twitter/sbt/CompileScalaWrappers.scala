@@ -10,7 +10,7 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   lazy val autoCompileScalaThrift = task {
     println("If this errors out, you might need to `gem install thrift_scala_wrappers`")
     import Process._
-    (execTask { "thrift_scala_wrappers %s %S %s %s".format( (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, scalaThriftTargetNamespace) }).run
+    (execTask { "thrift_scala_wrappers %s %s %s %s".format( (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, scalaThriftTargetNamespace) }).run
     
     None
   }
