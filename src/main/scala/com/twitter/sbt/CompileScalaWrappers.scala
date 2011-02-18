@@ -2,6 +2,7 @@ package com.twitter.sbt
 
 import _root_.sbt._
 import java.io._
+import org.jruby.embed._
 
 /**
  * This code is relatively young.  It's usable for some purposes now, but you might need an adventurous spirit to get involved at this stage.
@@ -11,9 +12,18 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def scalaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
   
   lazy val autoCompileScalaThrift = task {
-    println("If this errors out, you might need to `gem install thrift_scala_wrappers`")
-    import Process._
-    (execTask { "thrift_scala_wrappers %s %s %s %s".format( (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, scalaThriftTargetNamespace) }).run
+    // println("If this errors out, you might need to `gem install thrift_scala_wrappers`")
+    // import Process._
+    // (execTask { "thrift_scala_wrappers %s %s %s %s".format( ) }).run
+    
+    val name = "/ruby/codegen.rb"
+    val stream = getClass.getResourceAsStream(name)
+    val reader = new InputStreamReader(stream)
+    val container = new ScriptingContainer()
+    container.setClassLoader("".getClass.getClassLoader)
+    container.runScriptlet(reader, name)
+    val module = container.runScriptlet("Codegen")
+    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, scalaThriftTargetNamespace)  
     
     None
   }
