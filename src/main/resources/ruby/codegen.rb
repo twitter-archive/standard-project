@@ -1,41 +1,15 @@
 #!/usr/bin/env ruby
-$VERBOSE = nil
 
-# Semi-jank scala thrift code generation
-# 
-#         __
-#       .'  '\._
-#       \  @ /;      __
-#     ;::'--':;. _ .'  '.
-#       :;:: _.'._ \  @ /
-#       ;;.-:/ | \:.'--;
-#       :___......._ '.
-#      {{__..--""-,_'-.:
-#     {{[_ _  _  _ _'--.}                  ___          ____
-#     {[| | || || | |-.]}    /\      ___  |   \  ___   /    \         |
-#     {[\-'-':-::-:-'/ ]}   /  \    |   \ |___/ |   \  |  __   |  |   |
-#     {[  \ \ _\_/ /  ~]}  /----\   |___/ |  \  |___/  |    \  |__|   |
-#     {{[\ .-'    '-./]}} /      \  |  \  |   \ |  \    \___/  |  |  ( )
-#      {[.:-"'\ /'"-'.]}            |   \       |   \          |  |
-#     {['  __/ \__  :]}
-#     {[::' _) (_ ' :]}
-#    {{[:  : ] [  : :]}
-#    {[:  : (   )  :]}}
-#   {{[: :   '-'   :]}
-#    [ : :_.:';.   :]}
-#   {{[_.' _ _ _ '-._]}
-#    {|\\|~|_|_|_|~| ] }
-#    {{  '""''~~~""--  _'
-#      ''""""""""""""''
-#         .   |   .
-#         -:--|--:-
-#         '   |   '
-#            _|_
-#           |   |
-#           \   /
-#           /   \
+# This is the scala codegen.  It works by reflecting The generated ruby.
 
-# Stub out dependencies
+$VERBOSE = nil # Ruby thrift bindings always are noisy
+
+require "fileutils"
+require "erb"
+include FileUtils
+
+# Stub out thrift.  We just need to have the generated ruby compile, not
+# actually run in this context.
 module ::Thrift
   module Client; end
   module Processor; end 
@@ -45,7 +19,7 @@ module ::Thrift
     extend self
   end
   module Struct_Union; end
-  module Types
+  module Types # TODO: support everything
     STRUCT = 1
     I32 = 2
     LIST = 3
@@ -62,7 +36,9 @@ module ::Thrift
     end
   end
 end
+def require(*args); end
 
+# Utility stolen from activesupport
 class String
   def camelize(first_letter_in_uppercase = false)
     if first_letter_in_uppercase
@@ -73,11 +49,7 @@ class String
   end    
 end
 
-require "fileutils"
-require "erb"
-include FileUtils::Verbose
-
-def require(*args); end
+# These functions are macros for common patterns in the generated scala.
 
 def type_of(field, thrifty = false)
   base = case field[:type]
@@ -127,22 +99,13 @@ end
 
 MStruct = Struct.new(:name, :args, :retval)
 
-# if $0 == __FILE__
-#   program = File.basename($0)
-#   if ARGV.length != 4
-#     puts "Usage: #{program} GEN_RB OUTPUT OLD_NAMESPACE NEW_NAMESPACE"
-#     exit 1
-#   end
-#   
-#   run(*ARGV)
-# end
-
 module Codegen
   def run(input, output, tnamespace, namespace)
     output = File.expand_path(File.join(output, *namespace.split(".")))
     mkdir_p output
     $tnamespace = tnamespace
 
+    # Hooray, we generate the scala with ERb
     service_template_string = '
       package <%=namespace %>
 
@@ -218,24 +181,32 @@ module Codegen
       }
     '
 
+    # Load the thrift files
     cd input
     Dir["*types.rb"].each {|f| load f }
     Dir["*.rb"].each {|f| load f }
 
-
+    # Scan looking for...
     ObjectSpace.each_object(Class) do |obj|
+      
       if obj.method_defined?(:struct_fields) 
+        # Looking for structs
         if !obj.to_s[/::/]
           fields = obj.new.struct_fields.to_a.sort_by{|f| f.first}.map{|f| f.last }
           template = ERB.new(struct_template_string)
           File.open("#{output}/#{obj}.scala", "w") {|f| f.print(template.result(binding)) }
+          
+          # We assume that you'll have a single thrift exception type for your app.
           $exception = obj if obj.superclass == ::Thrift::Exception
         else
+          # This is probably the service class.  Again, we're assuming a single one.
+          # TODO: better detection and multiple services
           $service = Kernel.const_get(obj.to_s.split("::").first)
         end
       end
     end
 
+    # Actually parsing the service is a little more complicated than doing the structs.
     obj = $service
     methods = obj.constants.map{|c| c.to_s[/(.*)_args$/, 1] }.compact.map(&:downcase).map {|name|
       out = MStruct.new
