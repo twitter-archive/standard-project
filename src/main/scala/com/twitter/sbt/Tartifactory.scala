@@ -34,12 +34,17 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory {
 
 trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
   private val tartEnv = jcl.Map(System.getenv())
+  def handleIvyArtifactsInArtifactory = false
+
   val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
   val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
 
-  def artifactoryRepos = List(Resolver.url("artifactory.remote.ivy", new java.net.URL(artifactoryRoot + "/" + proxyRepo))
-                              (Patterns(ivyXmlPatterns, ivyArtifactPatterns, false)),
-                              "artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
+  def artifactoryRepos = if (handleIvyArtifactsInArtifactory) {
+    List(Resolver.url("artifactory.remote.ivy", new java.net.URL(artifactoryRoot + "/" + proxyRepo))(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false)),
+    "artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
+  } else {
+    List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
+  }
 
   def externalRepos = List(
     "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
@@ -58,7 +63,11 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
     val internalIvy = Resolver.url("twitter-private-ivy",
                                    localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
     val internalM2 = "twitter-private-m2" at "http://binaries.local.twitter.com/maven/"
-    List(internalIvy, internalM2)
+    if (handleIvyArtifactsInArtifactory) {
+      List(internalIvy, internalM2)
+    } else {
+      List(internalM2)
+    }
   } else {
     Nil
   }
