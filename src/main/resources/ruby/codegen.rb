@@ -20,7 +20,7 @@ module ::Thrift
     extend self
   end
   module Struct_Union; end
-  module Types # TODO: support everything
+  module Types
     BOOL   = 0
     BYTE   = 1
     I16    = 2
