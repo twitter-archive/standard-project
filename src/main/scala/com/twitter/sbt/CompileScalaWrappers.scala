@@ -5,14 +5,16 @@ import java.io._
 import org.jruby.embed._
 
 /**
- * This code is relatively young.  It's usable for some purposes now, but you might need an adventurous spirit to get involved at this stage.
+ * This code compiles scala wrappers for thrift.  I can't figure out how to test inside this package (recursive self sbt plugin tests?!),
+ * so I created a sample twitter-local project called "quack", that has an extremely heinous thrift IDL, which exercises every
+ * thrift type (with nesting and structs).  Grab it and compile it, to make sure this still works :).
  */
 trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def scalaThriftTargetNamespace: String
   def rubyThriftNamespace: String
   def scalaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
-  
-  lazy val autoCompileScalaThrift = task {    
+
+  lazy val autoCompileScalaThrift = task {
     val name = "/ruby/codegen.rb"
     val stream = getClass.getResourceAsStream(name)
     val reader = new InputStreamReader(stream)
@@ -20,11 +22,11 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
     container.setClassLoader("".getClass.getClassLoader)
     container.runScriptlet(reader, "__TMP__")
     val module = container.runScriptlet("Codegen")
-    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)  
-    
+    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)
+
     None
   }
-  
+
   def generatedScalaDirectoryName = "gen-scala"
   def generatedScalaPath = outputPath / generatedScalaDirectoryName
 

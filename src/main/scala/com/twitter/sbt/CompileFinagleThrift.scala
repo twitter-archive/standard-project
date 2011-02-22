@@ -22,24 +22,24 @@ trait CompileFinagleThrift
         case unknown => throw new Exception(
           "No thrift binary for %s, talk to marius@twitter.com".format(unknown))
       }
-       
+
       val stream = getClass.getResourceAsStream("/thrift/%s".format(binPath))
       val file = File.createTempFile("thrift", "scala")
       file.deleteOnExit()
       val fos = new BufferedOutputStream(new FileOutputStream(file), 1<<20)
-       
+
       var byte = stream.read()
       while (byte != -1) {
-        fos.write(byte)        
+        fos.write(byte)
         byte = stream.read()
       }
-       
+
       fos.flush()
-       
+
       import Process._
       val path = file.getAbsolutePath()
       (execTask { "chmod 0500 %s".format(path) }).run
-       
+
       CompileFinagleThrift.cachedPath = Some(path)
     }
 

@@ -41,7 +41,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
     val revName = currentRevision.map(_.substring(0, 8)).getOrElse(version)
     "%s-%s.zip".format(name, if (releaseBuild) version else revName)
   }
-  
+
   // copy scripts.
   val CopyScriptsDescription = "Copies scripts into the dist folder."
   val copyScripts = task {
