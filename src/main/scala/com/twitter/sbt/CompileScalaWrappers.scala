@@ -9,6 +9,7 @@ import org.jruby.embed._
  */
 trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def scalaThriftTargetNamespace: String
+  def rubyThriftNamespace: String
   def scalaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
   
   lazy val autoCompileScalaThrift = task {    
@@ -17,9 +18,9 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
     val reader = new InputStreamReader(stream)
     val container = new ScriptingContainer()
     container.setClassLoader("".getClass.getClassLoader)
-    container.runScriptlet(reader, name)
+    container.runScriptlet(reader, "__TMP__")
     val module = container.runScriptlet("Codegen")
-    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, scalaThriftTargetNamespace)  
+    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)  
     
     None
   }
