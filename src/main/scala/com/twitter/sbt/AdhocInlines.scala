@@ -62,6 +62,7 @@ object inline {
 
 trait AdhocInlines extends BasicManagedProject with Environmentalist {
   private[this] lazy val relPaths = new HashMap[(String, String), String]
+  private[this] lazy val unpublishedInlines = new HashSet[(String, String)]
 
   // For future use:
   val projectIsInlined = true
@@ -71,6 +72,11 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     // This is side effecting. Nasty, but it gets the job done.
     def relativePath(name: String) = {
       relPaths((m.organization, m.name)) = name
+      m
+    }
+
+    def withUnpublished() = {
+      unpublishedInlines += Pair(m.organization, m.name)
       m
     }
 
@@ -181,7 +187,7 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
                   inline.inlined += descriptor
                   inline.InlineDependency(module, project)
-               
+
                 case None =>
                   inline.ModuleDependency(module)
               }
@@ -239,9 +245,14 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
   // Use the full set of dependencies (super.libraryDependencies) for
   // module updates.
-  override def inlineSettings = new InlineConfiguration(
-    projectID, super.libraryDependencies, ivyXML, ivyConfigurations,
-    defaultConfiguration, ivyScala, ivyValidate)
+  override def inlineSettings = {
+    val filteredDeps = super.libraryDependencies.filter { m =>
+      !(unpublishedInlines contains (m.organization, m.name))
+    }
+
+    new InlineConfiguration(projectID, filteredDeps, ivyXML, ivyConfigurations,
+      defaultConfiguration, ivyScala, ivyValidate)
+  }
 
   private def resolve(logging: UpdateLogging.Value)(
     ivy: Ivy, module: DefaultModuleDescriptor,
