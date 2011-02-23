@@ -5,7 +5,6 @@ import java.util.Properties
 import fm.last.ivy.plugins.svnresolver.SvnResolver
 import _root_.sbt._
 
-
 /**
  * Semi-hacky way to publish to a subversion-based maven repository, using ivy-svn.
  */
@@ -34,7 +33,7 @@ trait SubversionPublisher extends BasicManagedProject {
         val resolver = new SvnResolver()
         resolver.setName("svn")
         resolver.setRepositoryRoot(repo)
-        resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision].[ext]"))
+        resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"))
         resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
 
         val username = prefs.getProperty("username")
