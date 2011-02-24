@@ -18,8 +18,7 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
     val name = "/ruby/codegen.rb"
     val stream = getClass.getResourceAsStream(name)
     val reader = new InputStreamReader(stream)
-    val container = new ScriptingContainer()
-    container.setClassLoader("".getClass.getClassLoader)
+    val container = new ScriptingContainer(LocalContextScope.SINGLETON, LocalVariableBehavior.TRANSIENT)
     container.runScriptlet(reader, "__TMP__")
     val module = container.runScriptlet("Codegen")
     container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)
