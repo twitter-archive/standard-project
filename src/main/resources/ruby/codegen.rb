@@ -249,7 +249,7 @@ module Codegen
           val out = new <%=tnamespace%>.<%=obj%>()
           <% for f in fields do %>
             <%="#{f[:name].camelize}.foreach { #{f[:name].camelize} => " if f[:optional] %>
-              <%unwrap(f) do %><%=f[:name].camelize%><% end %>
+              out.set<%=f[:name].capitalize%>(<%unwrap(f) do %><%=f[:name].camelize%><% end %>)
             <%="}" if f[:optional] %>
           <% end %>
           out
