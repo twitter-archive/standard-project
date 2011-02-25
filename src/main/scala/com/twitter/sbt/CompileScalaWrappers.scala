@@ -25,6 +25,8 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
 
     None
   }
+  
+  autoCompileScalaThrift dependsOn(autoCompileThriftRuby)
 
   def generatedScalaDirectoryName = "gen-scala"
   def generatedScalaPath = outputPath / generatedScalaDirectoryName

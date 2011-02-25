@@ -169,6 +169,8 @@ module Codegen
         <% for m in methods do %>
           def <%=m.name.camelize%>(<%=m.args.map{|f| f[:name].camelize + ": " + type_of(f)}.join(", ") %>): Future[<%=type_of(m.retval)%>]
         <% end %>
+        
+        def toThrift = new <%=obj%>ThriftAdapter(this)
       }
 
       class <%=obj%>ThriftAdapter(val <%=obj.to_s.camelize%>: <%=obj%>) extends <%=tnamespace%>.<%=obj%>.ServiceIface { 
@@ -272,10 +274,13 @@ module Codegen
         obj = last obj
         template = ERB.new(enum_template_string, nil, nil, "@output")
         File.open("#{output}/#{obj}.scala", "w") {|f| f.print(template.result(binding)) }
-      elsif obj.method_defined?(:struct_fields) 
+      end
+    end
+    
+    root.constants.each do |name|
+      obj = root.const_get(name)
+      if obj.method_defined?(:struct_fields) 
         fields = obj.new.struct_fields.to_a.sort_by{|f| f.first}.map{|f| f.last }
-        
-
         # We assume that you'll have a single thrift exception type for your app.
         is_exception = obj.superclass == ::Thrift::Exception  
         $exception = obj if is_exception
@@ -283,7 +288,12 @@ module Codegen
         obj = last obj
         template = ERB.new(struct_template_string, nil, nil, "@output")
         File.open("#{output}/#{obj}.scala", "w") {|f| f.print(template.result(binding)) }
-      elsif obj.const_defined?(:Client)
+      end
+    end
+    
+    root.constants.each do |name|
+      obj = root.const_get(name)
+      if obj.const_defined?(:Client)
         methods = obj.constants.map{|c| c.to_s[/(.*)_args$/, 1] }.compact.map(&:downcase).map {|name|
           out = MStruct.new
           out.name = name
