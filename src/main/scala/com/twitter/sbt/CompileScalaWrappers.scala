@@ -24,9 +24,7 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
     container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)
 
     None
-  }
-  
-  autoCompileScalaThrift dependsOn(autoCompileThriftRuby)
+  }.dependsOn(autoCompileThriftRuby)
 
   def generatedScalaDirectoryName = "gen-scala"
   def generatedScalaPath = outputPath / generatedScalaDirectoryName
