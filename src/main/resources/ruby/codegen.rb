@@ -323,6 +323,8 @@ module Codegen
       end
     end
     
+    abort("FATAL: You need at least one exception type in your thrift definition.") unless $exception
+    
     root.constants.each do |name|
       obj = root.const_get(name)
       if obj.const_defined?(:Client)
