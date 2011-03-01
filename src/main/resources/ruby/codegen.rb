@@ -242,6 +242,12 @@ module Codegen
           <% end %>
         }
         
+        def apply(name: String): <%=obj%> = name match {
+          <% values.values.each do |v| %> 
+            case "<%=v.downcase.camelize(true)%>" => <%=v.downcase.camelize(true)%>
+          <% end %>
+        }
+        
         <% values.each do |k, v| %> 
           object <%=v.downcase.camelize(true)%> extends <%=obj%>(<%=k%>) {
             val name = "<%=v.downcase.camelize(true)%>"
