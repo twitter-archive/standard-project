@@ -49,14 +49,14 @@ class WrappedDefaultProject(val underlying: DefaultProject)
   override def defaultConfiguration            = underlying.defaultConfiguration
   override def useMavenConfigurations          = underlying.useMavenConfigurations
   override def useDefaultConfigurations        = underlying.useDefaultConfigurations
-  
-	
-	override def updateModuleSettings  = underlying.updateModuleSettings 
-	override def updateIvyModule			 = underlying.updateIvyModule			
+
+
+	override def updateModuleSettings  = underlying.updateModuleSettings
+	override def updateIvyModule			 = underlying.updateIvyModule
 	override def deliverModuleSettings = underlying.deliverModuleSettings
-	override def deliverIvyModule			 = underlying.deliverIvyModule			
+	override def deliverIvyModule			 = underlying.deliverIvyModule
 	override def publishModuleSettings = underlying.publishModuleSettings
-	override def publishIvyModule			 = underlying.publishIvyModule			
+	override def publishIvyModule			 = underlying.publishIvyModule
 
 	// override protected def updateAction               = underlying.updateAction
 	// override protected def cleanLibAction             = underlying.cleanLibAction
@@ -88,7 +88,7 @@ class WrappedDefaultProject(val underlying: DefaultProject)
 			def resolve = self.resolve
 		}
 	}
-	 
+
 	override def propertyLocal[T](implicit manifest: Manifest[T], format: Format[T]) = {
 		lazy val p = underlying.propertyLocal(manifest, format)
 		new Property[T] with Proxy {
@@ -97,7 +97,7 @@ class WrappedDefaultProject(val underlying: DefaultProject)
 			def resolve = self.resolve
 		}
 	}
-	 
+
 	override def propertyOptional[T]
 			(defaultValue: => T)
 			(implicit manifest: Manifest[T], format: Format[T]) = {
@@ -108,7 +108,7 @@ class WrappedDefaultProject(val underlying: DefaultProject)
 			def resolve = self.resolve
 		}
 	}
-	 
+
 	override def system[T](propName: String)(implicit format: Format[T]) = {
 		lazy val p = underlying.system(propName)(format)
 		new Property[T] with Proxy {
@@ -117,7 +117,7 @@ class WrappedDefaultProject(val underlying: DefaultProject)
 			def resolve = self.resolve
 		}
 	}
-	 
+
 	override def systemOptional[T]
 			(propName: String, defaultValue: => T)
 			(implicit format: Format[T]) = {
