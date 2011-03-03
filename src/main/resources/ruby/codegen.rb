@@ -208,18 +208,20 @@ module Codegen
       class <%=obj%>ThriftAdapter(val <%=obj.to_s.camelize%>: <%=obj%>) extends <%=tnamespace%>.<%=obj%>.ServiceIface { 
         val logger = LoggerFactory.getLogger(getClass)
         <% for m in methods do %>
-          def <%=m.name.downcase%>(<%=m.args.map{|f| f[:name].camelize + ": " + type_of(f, true)}.join(", ") %>) = try {
+          def <%=m.name.downcase%>(<%=m.args.map{|f| f[:name].camelize + ": " + type_of(f, true)}.join(", ") %>) = <%="try" if $exception %> {
             <%=obj.to_s.camelize%>.<%=m.name.camelize%>(<%=m.args.map{|f| wrapper(f) }.join(", ")%>)
             <% if m.retval %>
               .map { retval =>
                 <% unwrap(m.retval) do %>retval<%end%>
               }
             <% end %>
-          } catch {
-            case t: Throwable => {
-              logger.error("uncaught error", t)
-              throw new <%=tnamespace%>.<%=last $exception%>(t.getMessage)
-            }
+          <% if $exception %>
+            } catch {
+              case t: Throwable => {
+                logger.error("uncaught error", t)
+                throw new <%=tnamespace%>.<%=last $exception%>(t.getMessage)
+              }
+          <% end %>
           }
         <% end %>
       }
@@ -328,9 +330,7 @@ module Codegen
         File.open("#{output}/#{obj}.scala", "w") {|f| f.print(template.result(binding)) }
       end
     end
-    
-    abort("FATAL: You need at least one exception type in your thrift definition.") unless $exception
-    
+        
     root.constants.each do |name|
       obj = root.const_get(name)
       if obj.const_defined?(:Client)
