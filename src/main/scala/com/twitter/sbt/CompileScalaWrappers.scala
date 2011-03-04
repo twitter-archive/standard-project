@@ -12,16 +12,17 @@ import org.jruby.embed._
 trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def scalaThriftTargetNamespace: String
   def rubyThriftNamespace: String
-  def scalaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
+  def javaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
 
-  lazy val autoCompileScalaThrift = task {
+  lazy val autoCompileThriftScala = task {
     val name = "/ruby/codegen.rb"
     val stream = getClass.getResourceAsStream(name)
     val reader = new InputStreamReader(stream)
     val container = new ScriptingContainer(LocalContextScope.SINGLETON, LocalVariableBehavior.TRANSIENT)
     container.runScriptlet(reader, "__TMP__")
     val module = container.runScriptlet("Codegen")
-    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)
+    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString,
+      (outputPath / generatedScalaDirectoryName ##).toString, javaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)
 
     None
   }.dependsOn(autoCompileThriftRuby)
@@ -30,6 +31,6 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def generatedScalaPath = outputPath / generatedScalaDirectoryName
 
   override def mainSourceRoots = super.mainSourceRoots +++ (outputPath / generatedScalaDirectoryName ##)
-  override def compileAction = super.compileAction dependsOn(autoCompileScalaThrift)
+  override def compileAction = super.compileAction dependsOn(autoCompileThriftScala)
   override def cleanAction = super.cleanAction dependsOn(cleanTask(generatedScalaPath))
 }
