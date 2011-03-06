@@ -18,7 +18,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   with StandardManagedProject
   with DependencyChecking
   with BuildProperties
-  with CompileThrift
 {
   override def dependencyPath = "libs"
 
