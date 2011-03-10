@@ -57,8 +57,9 @@ end
 
 # These functions are macros for common patterns in the generated scala.
 
-def type_of(field, thrifty = false)
+def type_of(field, thrifty = false, nested = false)
   return "Void" if field.nil?
+  j = thrifty && nested ? "java.lang." : ""
   base = case field[:type]
   when ::Thrift::Types::I32: 
     if field[:enum_class]
@@ -66,24 +67,25 @@ def type_of(field, thrifty = false)
       $tnamespace + "." + last(field[:enum_class]) :
       last(field[:enum_class])
     else
+      # thrifty ? "java.lang.Integer" : 
       "Int"
     end
   when ::Thrift::Types::STRUCT: thrifty ? $tnamespace + "." + last(field[:class]) : last(field[:class])
   when ::Thrift::Types::STRING: 
     field[:binary] ? "java.nio.ByteBuffer" : "String"
-  when ::Thrift::Types::BOOL: "Boolean"
-  when ::Thrift::Types::I16: "Int"
-  when ::Thrift::Types::I64: "Long"
-  when ::Thrift::Types::BYTE: "Byte"
-  when ::Thrift::Types::DOUBLE: "Double"
+  when ::Thrift::Types::BOOL: "#{j}Boolean"
+  when ::Thrift::Types::I16: "#{j}Short"
+  when ::Thrift::Types::I64: "#{j}Long"
+  when ::Thrift::Types::BYTE: "#{j}Byte"
+  when ::Thrift::Types::DOUBLE: "#{j}Double"
   when ::Thrift::Types::SET:
-    tmp = "Set[#{type_of(field[:element], thrifty)}]"
+    tmp = "Set[#{type_of(field[:element], thrifty, true)}]"
     thrifty ? "J#{tmp}" : tmp
   when ::Thrift::Types::MAP:
-    tmp = "Map[#{type_of(field[:key], thrifty)}, #{type_of(field[:value], thrifty)}]"
+    tmp = "Map[#{type_of(field[:key], thrifty, true)}, #{type_of(field[:value], thrifty, true)}]"
     thrifty ? "J#{tmp}" : tmp
   when ::Thrift::Types::LIST:
-    tmp = "List[#{type_of(field[:element], thrifty)}]"
+    tmp = "List[#{type_of(field[:element], thrifty, true)}]"
     thrifty ? "J#{tmp}" : tmp
   else
     throw "unknown field type: #{field[:type]}"
@@ -91,22 +93,32 @@ def type_of(field, thrifty = false)
   field[:optional] ? "Option[#{base}]" : base
 end  
 
-def unwrapper(f)
+def unwrapper(f, nested = false)
   pre = ""
   post = ""
   case f[:type]
+  when ::Thrift::Types::I64: 
+    if nested 
+      pre += "new java.lang.Long("
+      post += ")"
+    end
+  when ::Thrift::Types::BYTE: 
+    if nested 
+      pre += "new java.lang.Byte("
+      post += ")"
+    end
   when ::Thrift::Types::SET: 
     pre += "asJavaSet(("
-    a, b = unwrapper(f[:element])
+    a, b = unwrapper(f[:element], true)
     post += ").map(x => #{a}x#{b}))"
   when ::Thrift::Types::LIST: 
     pre += "asJavaList(("
-    a, b = unwrapper(f[:element])
+    a, b = unwrapper(f[:element], true)
     post += ").map(x => #{a}x#{b}))"
   when ::Thrift::Types::MAP: 
     pre += "asJavaMap(("
-    a, b = unwrapper(f[:key])
-    c, d = unwrapper(f[:value])
+    a, b = unwrapper(f[:key], true)
+    c, d = unwrapper(f[:value], true)
     post += ").map(x => (#{a}x._1#{b}, #{c}x._2#{d})).toMap)"
   when ::Thrift::Types::I32: 
     post += ".toThrift" if f[:enum_class]
@@ -123,7 +135,7 @@ def unwrap(f)
   @output << post
 end
 
-def wrapper(f, name = nil)
+def wrapper(f, name = nil, nested = false)
   name ||= f[:name].camelize
   case f[:type]
   when ::Thrift::Types::I32: 
@@ -132,9 +144,11 @@ def wrapper(f, name = nil)
     else
       name
     end
-  when ::Thrift::Types::LIST: "asScalaBuffer(#{name}).view.map(x=>#{wrapper(f[:element], "x")}).toList"
-  when ::Thrift::Types::SET: "Set(asScalaSet(#{name}).view.map(x=>#{wrapper(f[:element], "x")}).toSeq: _*)"
-  when ::Thrift::Types::MAP: "Map((#{name}).view.map(x=>(#{wrapper(f[:key], "x._1")}, #{wrapper(f[:value], "x._2")})).toSeq: _*)"
+  when ::Thrift::Types::BYTE: "#{name}.byteValue"
+  when ::Thrift::Types::I64: "#{name}.longValue"
+  when ::Thrift::Types::LIST: "asScalaBuffer(#{name}).view.map(x=>#{wrapper(f[:element], "x", true)}).toList"
+  when ::Thrift::Types::SET: "Set(asScalaSet(#{name}).view.map(x=>#{wrapper(f[:element], "x", true)}).toSeq: _*)"
+  when ::Thrift::Types::MAP: "Map((#{name}).view.map(x=>(#{wrapper(f[:key], "x._1", true)}, #{wrapper(f[:value], "x._2", true)})).toSeq: _*)"
   when ::Thrift::Types::STRUCT: "new #{last(f[:class])}(#{name})"
   else
     name
@@ -192,7 +206,7 @@ module Codegen
         var server: Server = null
         
         def start = {
-          val thriftImpl = new thrift.<%=obj%>.Service(toThrift, thriftProtocolFactory)
+          val thriftImpl = new <%=tnamespace%>.<%=obj%>.Service(toThrift, thriftProtocolFactory)
           val serverAddr = new InetSocketAddress(thriftPort)
           server = ServerBuilder().codec(thriftCodec).name(serverName).reportTo(new OstrichStatsReceiver).bindTo(serverAddr).build(thriftImpl)
         }

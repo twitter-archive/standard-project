@@ -11,8 +11,14 @@ import org.jruby.embed._
  */
 trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   def scalaThriftTargetNamespace: String
-  def rubyThriftNamespace: String
-  def scalaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
+
+  @Deprecated
+  def rubyThriftNamespace: String = throw new RuntimeException("Please override def rubyThriftNamespace or originalThriftNamespaces (latter preferred)")
+  @Deprecated
+  def javaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
+
+  // Preferred, because it handles compiling multiple namespaces
+  def originalThriftNamespaces = Map(rubyThriftNamespace->javaThriftNamespace)
 
   lazy val autoCompileScalaThrift = task {
     val name = "/ruby/codegen.rb"
@@ -21,8 +27,9 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
     val container = new ScriptingContainer(LocalContextScope.SINGLETON, LocalVariableBehavior.TRANSIENT)
     container.runScriptlet(reader, "__TMP__")
     val module = container.runScriptlet("Codegen")
-    container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, scalaThriftNamespace, rubyThriftNamespace, scalaThriftTargetNamespace)
-
+    for ((_rubyThriftNamespace, _javaThriftNamespace) <- originalThriftNamespaces) {
+      container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString, (outputPath / generatedScalaDirectoryName ##).toString, _javaThriftNamespace, _rubyThriftNamespace, scalaThriftTargetNamespace)
+    }
     None
   }.dependsOn(autoCompileThriftRuby)
 
@@ -33,3 +40,27 @@ trait CompileScalaWrappers extends DefaultProject with CompileFinagleThrift {
   override def compileAction = super.compileAction dependsOn(autoCompileScalaThrift)
   override def cleanAction = super.cleanAction dependsOn(cleanTask(generatedScalaPath))
 }
+
+
+// @Deprecated
+// def rubyThriftNamespace: String = throw new RuntimeException("Please override def rubyThriftNamespace or originalThriftNamespaces (latter preferred)")
+// @Deprecated
+// def javaThriftNamespace = scalaThriftTargetNamespace + ".thrift"
+// 
+// // Preferred, because it handles compiling multiple namespaces
+// def originalThriftNamespaces = Map(rubyThriftNamespace->javaThriftNamespace)
+// 
+// lazy val autoCompileThriftScala = task {
+//   val name = "/ruby/codegen.rb"
+//   val stream = getClass.getResourceAsStream(name)
+//   val reader = new InputStreamReader(stream)
+//   val container = new ScriptingContainer(LocalContextScope.SINGLETON, LocalVariableBehavior.TRANSIENT)
+//   container.runScriptlet(reader, "__TMP__")
+//   val module = container.runScriptlet("Codegen")
+//   for ((_rubyThriftNamespace, _javaThriftNamespace) <- originalThriftNamespaces) {
+//     container.callMethod(module, "run", (outputPath / generatedRubyDirectoryName ##).toString,
+//       (outputPath / generatedScalaDirectoryName ##).toString, _javaThriftNamespace, _rubyThriftNamespace, scalaThriftTargetNamespace)
+//   }
+// 
+//   None
+// }.dependsOn(autoCompileThriftRuby)
