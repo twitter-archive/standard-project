@@ -6,10 +6,8 @@ import scala.collection.jcl
 import _root_.sbt._
 
 // TODO: somehow link on the real SubversionPublisher in the main source tree
-class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with SubversionPublisher {
+class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with SubversionPublisher with IdeaProject {
   override def disableCrossPaths = true
-
-  val env = jcl.Map(System.getenv())
 
   override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
 

@@ -18,7 +18,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   with StandardManagedProject
   with DependencyChecking
   with BuildProperties
-  with CompileThrift
 {
   override def dependencyPath = "libs"
 
@@ -55,7 +54,17 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
 
   override def packageAction = super.packageAction dependsOn(testAction)
 
-  log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
+  // if IdeaProject is loaded, make "update" update the idea file too.
+  // this is really a workaround for fixing the idea plugin.
+  override def updateAction = {
+    super.updateAction && task {
+      if (getClass.getInterfaces.toList.map { _.getName } contains "IdeaProject") {
+        import Process._
+        ("sbt idea" !)
+      }
+      None
+    }
+  }
 
   // Optional ramdisk.
   private[this] val ramdiskRoot = environment.get("SBT_RAMDISK_ROOT")
@@ -93,6 +102,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
     else
       super.outputRootPath
 
+  log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
 }
 
 class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with StandardManagedProject {
