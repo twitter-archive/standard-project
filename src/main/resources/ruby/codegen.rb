@@ -97,6 +97,11 @@ def unwrapper(f, nested = false)
   pre = ""
   post = ""
   case f[:type]
+  when ::Thrift::Types::DOUBLE: 
+    if nested 
+      pre += "new java.lang.Double("
+      post += ")"
+    end
   when ::Thrift::Types::I64: 
     if nested 
       pre += "new java.lang.Long("
@@ -156,6 +161,7 @@ def wrapper(f, name = nil, nested = false)
   when ::Thrift::Types::BYTE: "#{name}.byteValue"
   when ::Thrift::Types::I64: "#{name}.longValue"
   when ::Thrift::Types::BOOL: "#{name}.booleanValue"
+  when ::Thrift::Types::DOUBLE: "#{name}.doubleValue"
   when ::Thrift::Types::LIST: "asScalaBuffer(#{name}).view.map(x=>#{wrapper(f[:element], "x", true)}).toList"
   when ::Thrift::Types::SET: "Set(asScalaSet(#{name}).view.map(x=>#{wrapper(f[:element], "x", true)}).toSeq: _*)"
   when ::Thrift::Types::MAP: "Map((#{name}).view.map(x=>(#{wrapper(f[:key], "x._1", true)}, #{wrapper(f[:value], "x._2", true)})).toSeq: _*)"
