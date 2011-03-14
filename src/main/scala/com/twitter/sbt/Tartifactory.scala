@@ -57,7 +57,7 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
     "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
     "jboss" at "http://repository.jboss.org/nexus/content/groups/public/")
 
-  def internalRepos = if(useInternalRepos) {
+  def internalRepos = if (useInternalRepos) {
     // set up an ivy style resolver for binaries.local.twitter.com.  I hate this.
     val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
     val internalIvy = Resolver.url("twitter-private-ivy",
@@ -88,7 +88,7 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
     } else {
       externalRepos ++ internalRepos ++ super.repositories
     }
-    Set(projectRepos:_*)
+    Set(projectRepos: _*)
   }
 
   override def ivyRepositories = {
