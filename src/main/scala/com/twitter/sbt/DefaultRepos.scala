@@ -11,7 +11,8 @@ import _root_.sbt._
  */
 trait DefaultRepos extends BasicManagedProject with Environmentalist {
   override def repositories = {
-    val extraRepos = if (environment.get("SBT_TWITTER").isDefined) {
+    // twitter has one extra internal repo.
+    val internalRepos = if (environment.get("SBT_TWITTER").isDefined) {
       val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
       val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
       val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
@@ -37,7 +38,7 @@ trait DefaultRepos extends BasicManagedProject with Environmentalist {
 
       // for netty:
       "jboss" at "http://repository.jboss.org/nexus/content/groups/public/"
-    ) ++ extraRepos
+    ) ++ internalRepos
 
     Set(repos: _*)
   }
