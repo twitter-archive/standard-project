@@ -4,10 +4,8 @@ import scala.collection.Set
 import _root_.sbt._
 
 /*
- * robey's notes:
- * - BasicManagedProject mixes in ReflectiveRepositories which defines "repositories" by
- *   reflectively collecting all vals that are of type Repository.
- * - so we should be able to pick up all arbitrary repos by calling super.repositories
+ * BasicManagedProject mixes in ReflectiveRepositories which defines "repositories" by
+ * reflectively collecting all vals that are of type Repository.
  */
 trait DefaultRepos extends BasicManagedProject with Environmentalist {
   def artifactoryRoot = "http://artifactory.local.twitter.com"
