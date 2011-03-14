@@ -8,9 +8,6 @@ import _root_.sbt._
  * reflectively collecting all vals that are of type Repository.
  */
 trait DefaultRepos extends BasicManagedProject with Environmentalist {
-  def artifactoryRoot = "http://artifactory.local.twitter.com"
-  def proxyRepo = "repo"
-
   override def repositories = {
     val proxyRepo = environment.get("SBT_PROXY_REPO") match {
       case None =>
