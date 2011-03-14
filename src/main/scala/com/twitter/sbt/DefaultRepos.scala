@@ -10,23 +10,23 @@ import _root_.sbt._
  * - so we should be able to pick up all arbitrary repos by calling super.repositories
  */
 trait DefaultRepos extends BasicManagedProject with Environmentalist {
-  override def repositories = {
-    // twitter has one extra internal repo.
-    val internalRepos = if (environment.get("SBT_TWITTER").isDefined) {
-      val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
-      val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
-      val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
+  def artifactoryRoot = "http://artifactory.local.twitter.com"
+  def proxyRepo = "repo"
 
-      val binariesIvyStyleRepo = Resolver.url("twitter internal old ivy-style paths",
-                                              localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
-      List(
-        "twitter-private-m2" at "http://binaries.local.twitter.com/maven/", binariesIvyStyleRepo
-      )
-    } else {
-      Nil
+  override def repositories = {
+    val proxyRepo = environment.get("SBT_PROXY_REPO") match {
+      case None =>
+        if (environment.get("SBT_TWITTER").isDefined) {
+          // backward compatibility: twitter's internal proxy
+          Some("http://artifactory.local.twitter.com/repo/")
+        } else {
+          None
+        }
+      case url =>
+        url
     }
 
-    val repos = List(
+    val defaultRepos = List(
       "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
       "twitter.com" at "http://maven.twttr.com/",
       "powermock-api" at "http://powermock.googlecode.com/svn/repo/",
@@ -38,8 +38,13 @@ trait DefaultRepos extends BasicManagedProject with Environmentalist {
 
       // for netty:
       "jboss" at "http://repository.jboss.org/nexus/content/groups/public/"
-    ) ++ internalRepos
+    )
 
-    Set(repos: _*)
+    proxyRepo match {
+      case Some(url) =>
+        Set("proxy-repo" at url)
+      case None =>
+        super.repositories ++ Set(defaultRepos: _*)
+    }
   }
 }
