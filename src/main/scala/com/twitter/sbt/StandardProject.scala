@@ -7,16 +7,19 @@ trait StandardManagedProject extends BasicManagedProject
   with SourceControlledProject
   with ReleaseManagement
   with Versions
-  with PublishLocalWithMavenStyleBasePattern
   with Environmentalist
 {
   override def disableCrossPaths = true
   override def managedStyle = ManagedStyle.Maven
+
+  // resolvers that will be used even if we're going through a proxy resolver
+  def localRepos: Set[Resolver] = Set()
 }
 
 class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   with StandardManagedProject
   with DependencyChecking
+  with PublishLocalWithMavenStyleBasePattern
   with BuildProperties
 {
   override def dependencyPath = "libs"
@@ -28,6 +31,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
 
   // local repositories
   val localLibs = Resolver.file("local-libs", new File("libs"))(Patterns("[artifact]-[revision].[ext]")) transactional()
+  override def localRepos = super.localRepos + localLibs
 
   // need to add mainResourcesOutputPath so the build.properties file can be found.
   override def consoleAction = interactiveTask {
@@ -105,7 +109,10 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
 }
 
-class StandardParentProject(info: ProjectInfo) extends ParentProject(info) with StandardManagedProject {
+class StandardParentProject(info: ProjectInfo) extends ParentProject(info)
+  with StandardManagedProject
+  with PublishLocalWithMavenStyleBasePattern
+{
   override def usesMavenStyleBasePatternInPublishLocalConfiguration = false
 }
 

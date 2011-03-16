@@ -7,7 +7,7 @@ import _root_.sbt._
  * BasicManagedProject mixes in ReflectiveRepositories which defines "repositories" by
  * reflectively collecting all vals that are of type Repository.
  */
-trait DefaultRepos extends BasicManagedProject with Environmentalist {
+trait DefaultRepos extends StandardManagedProject with Environmentalist {
   override def repositories = {
     val proxyRepo = environment.get("SBT_PROXY_REPO") match {
       case None =>
@@ -37,7 +37,7 @@ trait DefaultRepos extends BasicManagedProject with Environmentalist {
 
     proxyRepo match {
       case Some(url) =>
-        Set("proxy-repo" at url)
+        localRepos + ("proxy-repo" at url)
       case None =>
         super.repositories ++ Set(defaultRepos: _*)
     }
