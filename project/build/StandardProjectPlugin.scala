@@ -13,6 +13,9 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
 
   val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://maven.twttr.com/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
 
+  val markdown = "org.markdownj" % "markdownj" % "0.3.0-1.0.2b4"
+  val scalate = "org.freemarker" % "freemarker" % "2.3.16"
+
   override def managedStyle = ManagedStyle.Maven
   def artifactoryRoot = "http://artifactory.local.twitter.com"
   def snapshotDeployRepo = "libs-snapshots-local"
