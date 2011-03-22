@@ -1,6 +1,7 @@
 package com.twitter.sbt
 
 import _root_.sbt._
+import _root_.sbt.Process._
 import java.io._
 import freemarker.template.{Configuration => FreeConfig}
 import freemarker.cache.StringTemplateLoader
@@ -47,11 +48,56 @@ ${readme}
 
     buildSiteDir()
     buildIndex(cfg)
-    copyGeneratedDoc()
-    None
+    if (copyGeneratedDoc() != 0) {
+      Some("failed to copy generated doc")
+    } else {
+      None
+    }
   }
 
   lazy val buildSite = buildSiteTask dependsOn(`package`, packageDocs) describedAs "builds a dope site"
+
+  def publishToGithubTask = task {
+    // if gh-pages branch doesn't exist, bail
+    val ghPagesSetup: String = ("git branch -lr" #| "grep gh-pages")!!
+
+    if (ghPagesSetup == "") {
+      Some("gh-pages branch is not present, not publishing")
+    } else {
+      val remoteRepo: String = ("git config --get remote.origin.url" !!).trim
+      val tmpdir = System.getProperty("java.io.tmpdir") match {
+        case null => "/tmp"
+        case t => t
+      }
+      val tmpLoc = "%s/%s".format(tmpdir, projectName.value)
+      val siteFullPath = siteOutputPath.asFile.getAbsolutePath
+
+      // set up our working directory, clobbering any existing content
+      val res = "mv -n %s %s.%s".format(tmpLoc, tmpLoc, System.currentTimeMillis) #&&
+      "mkdir -p %s".format(tmpLoc) !
+
+      if (res == 0) {
+        // doing this the hard way because we're in a tmp dir
+        val gitClone = new java.lang.ProcessBuilder("git", "clone", remoteRepo, "-b", "gh-pages", ".") directory new File(tmpLoc)
+        val copySite = new java.lang.ProcessBuilder("cp",  "-r",  siteFullPath + File.separator, ".") directory new File(tmpLoc)
+        val gitAdd = new java.lang.ProcessBuilder("git", "add", ".") directory new File(tmpLoc)
+        val gitCommit = new java.lang.ProcessBuilder("git", "commit", "--allow-empty", "-m", "site update") directory new File(tmpLoc)
+        val gitPush = new java.lang.ProcessBuilder("git", "push", "origin", "gh-pages") directory new File(tmpLoc)
+
+        val gitRes = gitClone #&& copySite #&& gitAdd #&& gitCommit #&& gitPush!
+
+        if (gitRes == 0) {
+          None
+        } else {
+          Some("error publishing to github, exit code is " + gitRes)
+        }
+      } else {
+        Some("error setting up tmp directory, exit code is " + res)
+      }
+    }
+  }
+
+  lazy val publishToGithub = publishToGithubTask dependsOn(buildSite) describedAs "publishes to github"
 
   def buildIndex(cfg: FreeConfig) = {
     val oldIndex = (siteOutputPath / "index.html").asFile
@@ -89,38 +135,16 @@ ${readme}
     }
   }
 
-  def recursiveCopy(src: File, tgt: File): Unit = {
-    if (!tgt.exists) {
-      tgt.mkdirs()
-    }
-    src.listFiles.foreach(f => {
-      if (f.getName() == "." || f.getName() == "..") {
-        // noop
-      } else if (f.isDirectory) {
-        recursiveCopy(new File(src.getAbsolutePath() + File.separator + f.getName()),
-                      new File(tgt.getAbsolutePath() + File.separator + f.getName()))
-      } else {
-        val out = new File(tgt.getAbsolutePath() + File.separator + f.getName())
-        val from = new FileInputStream(f)
-        val to = new FileOutputStream(out)
-        var c = from.read()
-        while(c != -1) {
-          to.write(c)
-          c = from.read()
-        }
-        from.close()
-        to.close()
-      }
-    })
-  }
-
   def copyGeneratedDoc() = {
-    scalaDocDir.foreach(docDir => {
-      val doc = (siteOutputPath / "doc").asFile
-      if (!doc.exists) {
-        doc.mkdirs()
+    scalaDocDir match {
+      case Some(docDir) => {
+        val doc = siteOutputPath.asFile
+        if (!doc.exists) {
+          doc.mkdirs()
+        }
+        "cp -r %s %s".format(docDir.asFile, doc)!
       }
-      recursiveCopy(docDir.asFile, doc)
-    })
+      case None => 0
+    }
   }
 }
