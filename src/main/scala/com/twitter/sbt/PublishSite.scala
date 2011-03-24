@@ -57,6 +57,62 @@ ${readme}
 
   lazy val buildSite = buildSiteTask dependsOn(`package`, packageDocs) describedAs "builds a dope site"
 
+  def gitPublishRepo = Some("http://git.local.twitter.com/blabber.git")
+
+  def publishToGitTask = task {
+    gitPublishRepo.flatMap(repo => {
+      val tmpdir = System.getProperty("java.io.tmpdir") match {
+        case null => "/tmp"
+        case t => t
+      }
+      val tmpLoc = tmpdir + File.separator + "blabber"
+      val mySiteLoc = tmpLoc + File.separator + projectName.value
+      val siteFullPath = siteOutputPath.asFile.getAbsolutePath
+      val localGitRepoExists = if (!(new File(tmpLoc).exists)) {
+        val res = ("mkdir -p %s".format(tmpLoc)) !
+
+        if (res == 0) {
+          val cloneRes = ((new java.lang.ProcessBuilder("git", "clone", repo, ".") directory new File(tmpLoc) ) !)
+          cloneRes == 0
+        } else {
+          false
+        }
+      } else {
+        true
+      }
+      if (localGitRepoExists) {
+        val res = if ((new File(mySiteLoc)).exists) {
+          println("trying to mv %s to %s/%s.%s".format(mySiteLoc, tmpdir, projectName.value, System.currentTimeMillis))
+          ("mv -nf %s %s/%s.%s".format(mySiteLoc, tmpdir, projectName.value, System.currentTimeMillis)!)
+        } else {
+          0
+        }
+        if (res == 0) {
+          // doing this the hard way because we're in a tmp dir
+          val copySite = new java.lang.ProcessBuilder("cp",  "-r",  siteFullPath + File.separator, mySiteLoc) directory new File(tmpLoc)
+          val gitPull = new java.lang.ProcessBuilder("git",  "pull") directory new File(tmpLoc)
+          val gitAdd = new java.lang.ProcessBuilder("git", "add", ".") directory new File(tmpLoc)
+          val gitCommit = new java.lang.ProcessBuilder("git", "commit", "--allow-empty", "-m", "%s site update".format(projectName.value)) directory new File(tmpLoc)
+          val gitPush = new java.lang.ProcessBuilder("git", "push") directory new File(tmpLoc)
+
+          val gitRes = copySite #&& gitPull #&& gitAdd #&& gitCommit #&& gitPush!
+
+          if (gitRes == 0) {
+            None
+          } else {
+            Some("error publishing to %s, exit code is %d".format(repo, gitRes))
+          }
+        } else {
+          Some("error moving old site directory aside, exit code is %d".format(res))
+        }
+      } else {
+        Some("error cloning repo %s".format(repo))
+      }
+    })
+  }
+
+  lazy val publishToGit = publishToGitTask dependsOn(buildSite) describedAs "publishes to a git repo"
+
   def publishToGithubTask = task {
     // if gh-pages branch doesn't exist, bail
     val ghPagesSetup: String = ("git branch -lr" #| "grep gh-pages")!!
