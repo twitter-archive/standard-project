@@ -143,14 +143,14 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
   // We use ``info.projectDirectory'' instead of ``name'' here because
   // for subprojects, names aren't initialized as of this point
   // [seemingly not before the constructor has finished running].
-  if (isInlining) {
-    log.info("ad-hoc inlines enabled for " + info.projectDirectory)
-  } else {
-    log.info(
-      ("ad-hoc inlines NOT currently enabled " +
-       "for %s set SBT_ADHOC_INLINE=1 to enable")
-      .format(info.projectDirectory))
-  }
+  // if (isInlining) {
+  //   log.info("ad-hoc inlines enabled for " + info.projectDirectory)
+  // } else {
+  //   log.info(
+  //     ("ad-hoc inlines NOT currently enabled " +
+  //      "for %s set SBT_ADHOC_INLINE=1 to enable")
+  //     .format(info.projectDirectory))
+  // }
 
   if (environment.get("SBT_INLINE").isDefined) {
     log.error("ad-hoc inlines are incompatible with SBT_INLINE")
@@ -242,6 +242,9 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 
     log.info("Library dependencies:")
     moduleDependencies foreach { m => log.info("  %s".format(m)) }
+
+    log.info("Explicit dependencies:")
+    explicitDependencies foreach { dep => log.info("  %s".format(dep)) }
 
     None
   }

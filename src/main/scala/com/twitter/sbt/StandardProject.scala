@@ -106,7 +106,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
     else
       super.outputRootPath
 
-  log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
+  // log.info("Standard project rules " + BuildInfo.version + " loaded (" + BuildInfo.date + ").")
 }
 
 class StandardParentProject(info: ProjectInfo) extends ParentProject(info)
