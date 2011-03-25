@@ -63,6 +63,7 @@ object inline {
 trait AdhocInlines extends BasicManagedProject with Environmentalist {
   private[this] lazy val relPaths = new HashMap[(String, String), String]
   private[this] lazy val unpublishedInlines = new HashSet[(String, String)]
+  private[this] lazy val explicitDependencies = new HashSet[Dependency]
 
   // For future use:
   val projectIsInlined = true
@@ -87,11 +88,27 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     }
   }
 
+  case class Dependency(relPath: String, name: String) {
+    // TODO: do a better search? 
+    def projectPath: Path = Path.fromFile("..") / relPath
+  }
+
   implicit def moduleIDToRichModuleID(m: ModuleID) = new RichModuleID(m)
+  implicit def stringToAlmostDependency(relPath: String) = new {
+    def ~(name: String) = Dependency(relPath, name)
+  }
+
+  implicit def stringToDependency(relPath: String) =
+    Dependency(relPath, relPath)
+
   override def shouldCheckOutputDirectories = false
 
   def isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
   def inlineSearchPath = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
+
+  def dependencies(deps: Dependency*) {
+    explicitDependencies ++= deps
+  }
 
   private def resolveProject(organization: String, name: String, path: Path) =
     ProjectCache(organization, name) {
@@ -315,7 +332,26 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
         m.name -> project
       }
 
-    Map() ++ super.subProjects ++ mapped
+    val explicit =
+      explicitDependencies map { dep =>
+        val parentProject = RawProjectCache(dep.projectPath) { project(dep.projectPath) }
+        val foundProject =
+          if (parentProject.name != dep.name) {
+            // Try to find it in a subproject.
+            parentProject.subProjects.find { _._2.name == dep.name } map { _._2 }
+          } else {
+            Some(parentProject)
+          }
+
+        if (!foundProject.isDefined) {
+          log.error("could not find dependency %s".format(dep))
+          System.exit(1)
+        }
+
+        dep.name -> wrapProject(foundProject.get)
+      }
+
+    Map() ++ super.subProjects ++ mapped ++ explicit
   }
 
   override def managedClasspath(config: Configuration): PathFinder =
