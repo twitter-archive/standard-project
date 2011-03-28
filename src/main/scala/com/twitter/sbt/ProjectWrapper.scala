@@ -52,7 +52,6 @@ class WrappedDefaultProject(val underlying: DefaultProject)
 
   override def mainSourceRoots = underlying.mainSourceRoots
 
-
 	override def updateModuleSettings  = underlying.updateModuleSettings
 	override def updateIvyModule			 = underlying.updateIvyModule
 	override def deliverModuleSettings = underlying.deliverModuleSettings
