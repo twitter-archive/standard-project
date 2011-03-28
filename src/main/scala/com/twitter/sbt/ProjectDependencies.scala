@@ -14,6 +14,7 @@ import _root_.sbt._
 trait ProjectDependencies
   extends BasicManagedProject
   with ProjectCache
+  with ManagedClasspathFilter
 {
   private[this] lazy val projectDependencies = new HashSet[ProjectDependency]
 
@@ -77,6 +78,12 @@ trait ProjectDependencies
   }
 
   /**
+   * Filters out dependencies that are in our DAG.
+   */
+  def managedDependencyFilter(organization: String, name: String): Boolean =
+    !(projectClosure exists { p => p.organization == organization && p.name == name })
+
+  /**
    * Utilities / debugging.
    */
   lazy val showDependencies = task {
@@ -104,14 +111,4 @@ trait ProjectDependencies
 
     None
   }
-
-  override def managedClasspath(config: Configuration): PathFinder = {
-    super.managedClasspath(config) filter { path =>
-      println("PATH %s".format(path))
-      true
-    }
-  }
 }
-
-// Mixin for filtering deps out of the classpath?  Yes.  with a filter
-// function.
