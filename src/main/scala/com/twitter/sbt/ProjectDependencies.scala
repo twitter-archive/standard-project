@@ -21,7 +21,21 @@ trait ProjectDependencies
   override def shouldCheckOutputDirectories = false
 
   case class ProjectDependency(relPath: String, name: String) {
-    def projectPath: Path = Path.fromFile("..") / relPath
+    lazy val projectPath: Path = {
+      val candidates = Seq(
+        Path.fromFile(relPath),
+        Path.fromFile("..") / relPath
+      )
+
+      val resolved = candidates.find { path => (path / "project" / "build.properties").exists }
+      if (!resolved.isDefined) {
+        log.error("could not find project path for (%s, %s)".format(relPath, name))
+        System.exit(1)
+      }
+
+      resolved.get
+    }
+
 
     def resolveProject: Option[Project] = {
       projectCache("project:%s:%s".format(projectPath.toString, name)) {
