@@ -56,7 +56,7 @@ trait ManagedClasspathFilter extends BasicManagedProject {
 
 				case None =>
 					// Exclude stuff we don't know about.
-					log.warn("ManagedClasspathFilter: %s NOT FOUND, excluding".format(path.name))
+					// log.warn("ManagedClasspathFilter: %s NOT FOUND, excluding".format(path.name))
 					false
 			}
 		}

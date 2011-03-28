@@ -16,7 +16,7 @@ trait ProjectDependencies
   with ProjectCache
   with ManagedClasspathFilter
 {
-  private[this] lazy val projectDependencies = new HashSet[ProjectDependency]
+  private lazy val _projectDependencies = new HashSet[ProjectDependency]
 
   override def shouldCheckOutputDirectories = false
 
@@ -36,9 +36,8 @@ trait ProjectDependencies
       resolved.get
     }
 
-
     def resolveProject: Option[Project] = {
-      projectCache("project:%s:%s".format(projectPath.toString, name)) {
+      projectCache("project:%s:%s".format(relPath, name)) {
         val parentProject =
           projectCache("path:%s".format(projectPath)) { Some(project(projectPath)) }
         val foundProject = parentProject flatMap { parentProject => 
@@ -64,9 +63,8 @@ trait ProjectDependencies
     ProjectDependency(relPath, relPath)
 
   def projectDependencies(deps: ProjectDependency*) {
-    projectDependencies ++= deps
+    _projectDependencies ++= deps
   }
-
 
   private[this] var subProjectsInitialized = false
 
@@ -78,7 +76,7 @@ trait ProjectDependencies
       subProjectsInitialized = true
     }
 
-    val projects = projectDependencies map { dep =>
+    val projects = _projectDependencies map { dep =>
       val project = dep.resolveProject
       if (!project.isDefined) {
         log.error("could not find dependency %s".format(dep))
@@ -94,18 +92,20 @@ trait ProjectDependencies
   /**
    * Filters out dependencies that are in our DAG.
    */
+
   def managedDependencyFilter(organization: String, name: String): Boolean =
     !(projectClosure exists { p => p.organization == organization && p.name == name })
 
   /**
    * Utilities / debugging.
    */
+
   lazy val showDependencies = task {
     log.info("Library dependencies:")
     libraryDependencies foreach { dep => log.info("  %s".format(dep)) }
-    
+
     log.info("Project dependencies:")
-    projectDependencies foreach { dep => log.info("  %s".format(dep)) }
+    _projectDependencies foreach { dep => log.info("  %s".format(dep)) }
 
     None
   }
@@ -115,6 +115,7 @@ trait ProjectDependencies
     projectClosure foreach { project =>
       println("  " + project + " " + project.hashCode)
     }
+
     None
   }
 

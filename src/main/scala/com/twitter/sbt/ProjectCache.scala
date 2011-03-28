@@ -18,7 +18,9 @@ trait ProjectCache extends BasicManagedProject {
     _projectCacheStore
   }
 
-  protected def setProjectCacheStoreInProject(p: Project, store: HashMap[String, Project]) = {
+  protected def setProjectCacheStoreInProject(
+    p: Project, store: HashMap[String, Project]
+  ) = {
     val m = p.getClass.getDeclaredMethod(
       "setProjectCacheStore", classOf[HashMap[String, Project]])
     if (m ne null) {
@@ -30,6 +32,8 @@ trait ProjectCache extends BasicManagedProject {
   }
 
   def setProjectCacheStore(store: HashMap[String, Project]) {
+    // // Compute overlap?
+    // projectCacheStore foreach { case (k, v) => store(k) = v }
     _projectCacheStore = store
 
     subProjects foreach { case (_, p) =>
