@@ -17,6 +17,7 @@ trait ProjectDependencies
   with ManagedClasspathFilter
 {
   private lazy val _projectDependencies = new HashSet[ProjectDependency]
+  def getProjectDependencies = _projectDependencies
 
   override def shouldCheckOutputDirectories = false
 
