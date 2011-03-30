@@ -9,6 +9,7 @@ trait GitHelpers {
 
   def gitCommitSavedEnvironment(message: Option[String]) {
     run(
+      "git add project/release.properties" ##
       "git add project/build.properties" #&&
       Seq("git", "commit",  "-m",  message.getOrElse("Updating build.properties"))
     )
