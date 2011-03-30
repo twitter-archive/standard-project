@@ -143,9 +143,6 @@ trait ProjectDependencies
    */
 
   def lastReleasedVersion(): Option[Version] = {
-    import java.util.Properties
-    import java.io.FileInputStream
-
     val project = info.parent getOrElse this
     val releasePropertiesPath =
       Path.fromFile(project.info.projectPath.absolutePath) / "project" / "release.properties"
