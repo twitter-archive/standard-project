@@ -39,7 +39,7 @@ trait ManagedClasspathFilter extends BasicManagedProject {
   }
 
   override def inlineSettings = {
-    val filteredDeps = super.libraryDependencies.filter { m =>
+    val filteredDeps = libraryDependencies.filter { m =>
       managedDependencyFilter(m.organization, m.name)
     }
 
