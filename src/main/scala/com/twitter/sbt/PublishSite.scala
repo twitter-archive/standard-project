@@ -129,8 +129,12 @@ ${readme}
       val siteFullPath = siteOutputPath.asFile.getAbsolutePath
 
       // set up our working directory, clobbering any existing content
-      val res = "mv -n %s %s.%s".format(tmpLoc, tmpLoc, System.currentTimeMillis) #&&
-      "mkdir -p %s".format(tmpLoc) !
+      val res = if ((new File(tmpLoc)).exists) {
+        "mv -n %s %s.%s".format(tmpLoc, tmpLoc, System.currentTimeMillis) #&&
+        "mkdir -p %s".format(tmpLoc) !
+      } else {
+        "mkdir -p %s".format(tmpLoc) !
+      }
 
       if (res == 0) {
         // doing this the hard way because we're in a tmp dir
