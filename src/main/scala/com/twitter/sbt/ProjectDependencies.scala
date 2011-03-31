@@ -25,9 +25,18 @@ trait ProjectDependencies
   /**
    * Flag management.
    */
+  val ProjectDependenciesFile = ".has_project_deps_f0b6608e"
   private var _useProjectDependencies: Option[Boolean] = None
+  private lazy val projectDependenciesFilePresent =
+    Seq(Path.fromFile(ProjectDependenciesFile),
+        Path.fromFile("..") / ProjectDependenciesFile).exists { _.exists }    
+
   def useProjectDependencies =
-    _useProjectDependencies getOrElse !environment.get("NO_PROJECT_DEPS").isDefined
+    _useProjectDependencies getOrElse {
+      !environment.get("NO_PROJECT_DEPS").isDefined &&
+      projectDependenciesFilePresent
+    }
+
   private lazy val _projectDependencies = new HashSet[ProjectDependency]
   def getProjectDependencies = _projectDependencies
 
@@ -66,36 +75,32 @@ trait ProjectDependencies
       if (relPath == name) this
       else ProjectDependency(relPath, relPath)
 
-    lazy val projectPath: Path = {
+    lazy val projectPath: Option[Path] = {
       val candidates = Seq(
         Path.fromFile(relPath),
         Path.fromFile("..") / relPath
       )
 
-      val resolved = candidates.find { path => (path / "project" / "build.properties").exists }
-      if (!resolved.isDefined) {
-        log.error("could not find project path for (%s, %s)".format(relPath, name))
-        System.exit(1)
-      }
-
-      resolved.get
+      candidates.find { path => (path / "project" / "build.properties").exists }
     }
 
     def resolveProject: Option[Project] = {
       projectCache("project:%s:%s".format(relPath, name)) {
-        val parentProject =
-          projectCache("path:%s".format(projectPath)) { Some(project(projectPath)) }
-        val foundProject = parentProject flatMap { parentProject => 
-          if (parentProject.name != name) {
-            // Try to find it in a subproject.
-            parentProject.subProjects.find { _._2.name == name } map { _._2 }
-          } else {
-            Some(parentProject)
+        projectPath flatMap { projectPath =>
+          val parentProject =
+            projectCache("path:%s".format(projectPath)) { Some(project(projectPath)) }
+          val foundProject = parentProject flatMap { parentProject => 
+            if (parentProject.name != name) {
+              // Try to find it in a subproject.
+              parentProject.subProjects.find { _._2.name == name } map { _._2 }
+            } else {
+              Some(parentProject)
+            }
           }
-        }
 
-        foundProject foreach { setProjectCacheStoreInProject(_, projectCacheStore) }
-        foundProject
+          foundProject foreach { setProjectCacheStoreInProject(_, projectCacheStore) }
+          foundProject
+        }
       }
     }
 
@@ -107,13 +112,16 @@ trait ProjectDependencies
       val prop = new Properties
       prop.load(new FileInputStream(versionsPath.toString))
 
-      resolveProject flatMap { depProject =>
-        val versionString = prop.getProperty(
-          "%s/%s".format(depProject.organization, depProject.name))
-        if (versionString ne null)
-          Some(depProject.organization % depProject.name % versionString)
+      val key = prop.getProperty("%s|%s".format(relPath, name))
+      if (key ne null) {
+        val Array(org, name) = key.split("/", 2)
+        val version = prop.getProperty(key)
+        if (version ne null)
+          Some(org % name % version)
         else
           None
+      } else {
+        None
       }
     }
   }
@@ -141,14 +149,10 @@ trait ProjectDependencies
     }
 
     if (useProjectDependencies) {
-      val projects = _projectDependencies map { dep =>
-        val project = dep.resolveProject
-        if (!project.isDefined) {
-          log.error("could not find dependency %s".format(dep))
-          System.exit(1)
+      val projects = _projectDependencies flatMap { dep =>
+        dep.resolveProject map { project =>
+          dep.name -> project
         }
-
-        dep.name -> project.get
       }
 
       Map() ++ super.subProjects ++ projects
@@ -159,7 +163,11 @@ trait ProjectDependencies
 
   override def libraryDependencies =
     if (useProjectDependencies) {
-      super.libraryDependencies
+      val missingProjectDependencies =
+        _projectDependencies filter { !_.resolveProject.isDefined }
+      super.libraryDependencies ++ (
+        Set() ++ missingProjectDependencies flatMap { _.resolveModuleID }
+      )
     } else {
       (Set() ++ _projectDependencies map { _.resolveModuleID.get }) ++ super.libraryDependencies
     }
@@ -209,8 +217,8 @@ trait ProjectDependencies
     if (versionsPath.exists)
       prop.load(new FileInputStream(versionsPath.toString))
 
-    val projects = _projectDependencies flatMap { _.resolveProject }
-    projects foreach { p =>
+    val projects = _projectDependencies flatMap { dep => dep.resolveProject map { (_, dep) } }
+    projects foreach { case (p, dep) =>
       val m = p.getClass.getDeclaredMethod("lastReleasedVersion")
 			val version = if (m ne null) {
 				m.invoke(p).asInstanceOf[Option[Version]]
@@ -219,10 +227,10 @@ trait ProjectDependencies
 				None
 			}
 
-			version foreach { version =>
-				prop.setProperty(
-					"%s/%s".format(p.organization, p.name),
-					version.toString)
+      version foreach { version =>
+				val key = "%s/%s".format(p.organization, p.name)
+        prop.setProperty("%s|%s".format(dep.relPath, dep.name), key)
+        prop.setProperty(key, version.toString)
 			}
     }
 
