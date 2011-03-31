@@ -22,9 +22,42 @@ trait ProjectDependencies
   with ManagedClasspathFilter
   with Environmentalist
 {
-  private lazy val useProjectDependencies = !environment.get("NO_PROJECT_DEPS").isDefined
+  /**
+   * Flag management.
+   */
+  private var _useProjectDependencies: Option[Boolean] = None
+  def useProjectDependencies =
+    _useProjectDependencies getOrElse !environment.get("NO_PROJECT_DEPS").isDefined
   private lazy val _projectDependencies = new HashSet[ProjectDependency]
   def getProjectDependencies = _projectDependencies
+
+  def setUseProjectDependencies(which: Boolean): Boolean = {
+    val old = useProjectDependencies
+    _useProjectDependencies = Some(which)
+    old
+  }
+
+  protected def withProjectDependenciesOff[A](f: () => A): A = {
+    val old = setUseProjectDependencies(false)
+    val oldProjects =
+      super.subProjects
+        .filter { _.isInstanceOf[ProjectDependencies] }
+        .map    { _.asInstanceOf[ProjectDependencies] }
+        .map    { p => (p, p.setUseProjectDependencies(false)) }
+
+    println("WITH OFF %s".format(oldProjects.mkString(", ")))
+    
+    val result = f()
+
+    setUseProjectDependencies(old)
+    oldProjects foreach { case (p, old) => p.setUseProjectDependencies(old) }
+    result
+  }
+
+  private var isParentProject = true
+  def setIsSubProject() {
+    isParentProject = false
+  }
 
   override def shouldCheckOutputDirectories = false
 
@@ -101,6 +134,7 @@ trait ProjectDependencies
   override def subProjects = {
     if (!subProjectsInitialized) {
       super.subProjects foreach { case (_, p) =>
+        p.asInstanceOf[ProjectDependencies].setIsSubProject()
         setProjectCacheStoreInProject(p, projectCacheStore)
       }
       subProjectsInitialized = true
@@ -143,7 +177,7 @@ trait ProjectDependencies
    */
 
   def lastReleasedVersion(): Option[Version] = {
-    val project = info.parent getOrElse this
+    val project = if (isParentProject) this else info.parent.get
     val releasePropertiesPath =
       Path.fromFile(project.info.projectPath.absolutePath) / "project" / "release.properties"
     val prop = new Properties
@@ -162,18 +196,20 @@ trait ProjectDependencies
   }
 
   lazy val updateVersions = task {
-    val prop = new Properties
-    val projects = _projectDependencies flatMap { _.resolveProject }
-
     // TODO: use builderPath?
-    val project = info.parent getOrElse this
+    val project = if (isParentProject) this else info.parent.get
+
     val versionsPath =
       Path.fromFile(project.info.projectPath.absolutePath) / "project" / "versions.properties"
 
+    println("updating versions for %s // %s".format(name, versionsPath))
+
     // Merge the existing one when it exists.
+    val prop = new Properties
     if (versionsPath.exists)
       prop.load(new FileInputStream(versionsPath.toString))
 
+    val projects = _projectDependencies flatMap { _.resolveProject }
     projects foreach { p =>
       val m = p.getClass.getDeclaredMethod("lastReleasedVersion")
 			val version = if (m ne null) {
@@ -197,15 +233,71 @@ trait ProjectDependencies
     None
   }
 
+	// // projectIntransitiveActions
+  // override def act(name: String): Option[String] = {
+  //   println("ACT %s".format(name))
+  //   val r = if (name == "publish-local") {
+  //     println("TURNING OFF project deps")
+  //     withProjectDependenciesOff { () =>
+  //       super.act(name)
+  //     }
+  //   } else
+  //     super.act(name)
+  //  
+  //   println("DONE!")
+  //   r
+  // }
+
+  // override lazy val publish = task { None }
+
+	// override def publishTask(
+  //   module: => IvySbt#Module,
+  //   publishConfiguration: => PublishConfiguration
+  // ) = task {
+  //   println("PUBLISH TASK!!!")
+  //   withProjectDependenciesOff {
+  //     println("running with OFF...")
+  //     val r = super.publishTask(module, publishConfiguration).run
+  //     println("~~~~~ running with OFF...")
+  //     r
+  //   }
+  // }
+
   /**
    * Utilities / debugging.
    */
+
+  lazy val fooBar = task {
+    super.subProjects foreach { sp =>
+      println("SUBPROJECT %s".format(sp))
+      println("SUBPROJECT %s".format(sp.isInstanceOf[ProjectDependencies]))
+    }
+
+    None
+  }
+
+  lazy val toggleProjectDependencies = task {
+    _useProjectDependencies = Some(!useProjectDependencies)
+    if (useProjectDependencies)
+      log.info("project dependencies are on")
+    else
+      log.info("project dependencies are off")
+    None
+  }
+
+  lazy val showParent = task {
+    log.info("my name is: %s and my parent is: %s. my parent project status is: %s".format(
+      name, info.parent, isParentProject))
+    None
+  }
 
   lazy val showDependencies = task {
     log.info("Library dependencies:")
     libraryDependencies foreach { dep => log.info("  %s".format(dep)) }
 
     log.info("Project dependencies:")
+    if (!useProjectDependencies)
+      log.info("* project dependencies are currently turned off")
     _projectDependencies foreach { dep => log.info("  %s".format(dep)) }
 
     None
