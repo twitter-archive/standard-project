@@ -20,29 +20,11 @@ import org.apache.ivy.core.LogOptions
 
 import _root_.sbt._
 
-object ProjectCache {
-  private[this] val cache = new HashMap[(String, String), Project]
 
-  def apply(organization: String, name: String)(make: => Option[Project]) = {
-    val key = (organization, name)
-    cache.get(key) match {
-      case someProject@Some(_) => someProject
-      case None =>
-        val made = make
-        made foreach { project =>
-          cache(key) = project
-        }
-
-        made
-    }
-  }
-}
-
-object RawProjectCache {
-  private[this] val cache = new HashMap[String, Project]
-  def apply(path: Path)(make: => Project) = cache.getOrElseUpdate(path.absolutePath, make)
-}
-
+// object RawProjectCache {
+//   private[this] val cache = new HashMap[String, Project]
+//   def apply(path: Path)(make: => Project) = cache.getOrElseUpdate(path.absolutePath, make)
+// }
 
 object inline {
   // TODO: push as much of this into per-project caches as
@@ -61,8 +43,48 @@ object inline {
 }
 
 trait AdhocInlines extends BasicManagedProject with Environmentalist {
+  class ProjectCache {
+    private[this] var cache = new HashMap[String, Project]
+   
+    def getStore() = cache
+   
+    def setStore(underlying: HashMap[String, Project]) {
+      cache = underlying
+    }
+   
+    def apply(key: String)(make: => Option[Project]) = {
+      cache.get(key) match {
+        case someProject@Some(_) => someProject
+        case None =>
+          val made = make
+          made foreach { project =>
+            cache(key) = project
+          }
+   
+          made
+      }
+    }  
+  }
+
   private[this] lazy val relPaths = new HashMap[(String, String), String]
   private[this] lazy val unpublishedInlines = new HashSet[(String, String)]
+  private[this] lazy val explicitDependencies = new HashSet[Dependency]
+  private[this] lazy val projectCache = new ProjectCache
+
+  def setProjectCacheStore(store: HashMap[String, Project]) {
+    println("SETTING PROJECT CACHE STORE (%d)".format(store.size))
+    // (merge?)
+    println("OLD ONE (%d)".format(projectCache.getStore.size))
+
+    projectCache.setStore(store)
+    subProjects foreach {
+      case (name, adhoc: AdhocInlines) =>
+        println(":-) %s".format(name))
+        adhoc.setProjectCacheStore(store)
+      case (name, _) =>
+        println(":-(%s)".format(name))
+    }
+  }
 
   // For future use:
   val projectIsInlined = true
@@ -87,27 +109,62 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     }
   }
 
+  case class Dependency(relPath: String, name: String) {
+    // TODO: do a better search? 
+    def projectPath: Path = Path.fromFile("..") / relPath
+
+    def resolveProject: Option[Project] = {
+      projectCache("project:%s".format(name)) {
+        println("PROJECT CACHE MAKE MAKE: %s".format(name))
+        val parentProject =
+          projectCache("path:%s".format(projectPath)) { Some(project(projectPath)) }
+        val foundProject = parentProject flatMap { parentProject => 
+          if (parentProject.name != name) {
+            // Try to find it in a subproject.
+            parentProject.subProjects.find { _._2.name == name } map { _._2 }
+          } else {
+            Some(parentProject)
+          }
+        }
+
+        foundProject map { wrapProject(_) }
+      }
+    }
+  }
+
   implicit def moduleIDToRichModuleID(m: ModuleID) = new RichModuleID(m)
+  implicit def stringToAlmostDependency(relPath: String) = new {
+    def ~(name: String) = Dependency(relPath, name)
+  }
+
+  implicit def stringToDependency(relPath: String) =
+    Dependency(relPath, relPath)
+
   override def shouldCheckOutputDirectories = false
 
   def isInlining = environment.get("SBT_ADHOC_INLINE").isDefined
   def inlineSearchPath = environment.getOrElse("SBT_ADHOC_INLINE_PATH", "..")
 
+  def dependencies(deps: Dependency*) {
+    explicitDependencies ++= deps
+  }
+
   private def resolveProject(organization: String, name: String, path: Path) =
-    ProjectCache(organization, name) {
+    projectCache("project:%s/%s".format(organization, name)) {
       if ((path / "project" / "build.properties").exists) {
-        val rawProject = RawProjectCache(path) { project(path) }
-        val foundProject =
+        val rawProject = projectCache("path:%s".format(path)) { Some(project(path)) }
+        val foundProject = rawProject flatMap { rawProject =>
           if (rawProject.name != name) {
             // Try to find it in a subproject.
             rawProject.subProjects.find(_._2.name == name) map (_._2)
           } else {
             Some(rawProject)
           }
+        }
 
         if (!foundProject.isDefined) {
           log.warn("project name mismatch @ %s (expected: %s got: %s)".format(
-            path, name, rawProject.name))
+            path, name, rawProject.get.name))
           None
         } else if (foundProject.get.organization != organization) {
           log.warn("project organization mismatch @ %s (expected: %s got: %s)".format(
@@ -123,17 +180,19 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     }
 
 
+  // println("project cache", info.projectDirectory, ProjectCache)
+
   // We use ``info.projectDirectory'' instead of ``name'' here because
   // for subprojects, names aren't initialized as of this point
   // [seemingly not before the constructor has finished running].
-  if (isInlining) {
-    log.info("ad-hoc inlines enabled for " + info.projectDirectory)
-  } else {
-    log.info(
-      ("ad-hoc inlines NOT currently enabled " +
-       "for %s set SBT_ADHOC_INLINE=1 to enable")
-      .format(info.projectDirectory))
-  }
+  // if (isInlining) {
+  //   log.info("ad-hoc inlines enabled for " + info.projectDirectory)
+  // } else {
+  //   log.info(
+  //     ("ad-hoc inlines NOT currently enabled " +
+  //      "for %s set SBT_ADHOC_INLINE=1 to enable")
+  //     .format(info.projectDirectory))
+  // }
 
   if (environment.get("SBT_INLINE").isDefined) {
     log.error("ad-hoc inlines are incompatible with SBT_INLINE")
@@ -226,22 +285,42 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     log.info("Library dependencies:")
     moduleDependencies foreach { m => log.info("  %s".format(m)) }
 
+    log.info("Explicit dependencies:")
+    explicitDependencies foreach { dep => log.info("  %s".format(dep)) }
+
     None
   }
 
   lazy val showProjectClosure = task {
     log.info("Project closure:")
     projectClosure foreach { project =>
-      println("  " + project)
+      println("  " + project + " " + project.hashCode)
     }
     None
   }
 
-  private def wrapProject(p: Project) =
-    p match {
-      case p: DefaultProject => new WrappedDefaultProject(p) with AdhocInlines
-      case p => p
-    }
+  private def wrapProject(p: Project) = {
+    println("WRAPPING PROJECT OF CLASS", p.getClass)
+    // p.getClass.getDeclaredMethods foreach { method =>
+    //   println("METHOD", method)
+    // }
+    val m = p.getClass.getDeclaredMethod(
+      "setProjectCacheStore", classOf[HashMap[String, Project]])
+    if (m ne null) {
+			m.invoke(p, projectCache.getStore)
+		} else {
+			println("whining loudly.")
+		}
+    
+    p
+  }
+
+
+  // p match {
+  //   case _: AdhocInlines => p
+  //   case p: DefaultProject => new WrappedDefaultProject(p) with AdhocInlines
+  //   case p => p
+  // }
 
   // Use the full set of dependencies (super.libraryDependencies) for
   // module updates.
@@ -269,7 +348,12 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
     val file = new File(info.projectDirectory, ".ivyjars")
 		val out = new java.io.PrintWriter(new java.io.FileWriter(file))
 
-		for (dep <- resolveReport.getDependencies; id = dep.asInstanceOf[IvyNode].getId) {
+		println("RESOLVE")
+    for (dep <- resolveReport.getDependencies; id = dep.asInstanceOf[IvyNode].getId) {
+      println("ID %s".format(id))
+    }
+    
+    for (dep <- resolveReport.getDependencies; id = dep.asInstanceOf[IvyNode].getId) {
 			out.println("%s\t%s\t%s-%s.jar".format(
         id.getOrganisation, id.getName,
         id.getName, id.getRevision))
@@ -309,13 +393,37 @@ trait AdhocInlines extends BasicManagedProject with Environmentalist {
 	  ivyTask { update(module, configuration) }
   }
 
+  private lazy val wtf: Boolean = {
+    explicitDependencies foreach { dep =>
+      // XXX com.twitter
+      inline.inlined += inline.ModuleDescriptor("com.twitter", dep.name)
+    }
+
+    super.subProjects foreach { case (_, p) => wrapProject(p) }
+
+    true
+  }
+
   override def subProjects = {
+    require(wtf)
+
     val mapped =
       inlineDependencies map { case (m, project) =>
         m.name -> project
       }
 
-    Map() ++ super.subProjects ++ mapped
+    val explicit =
+      explicitDependencies map { dep =>
+        val project = dep.resolveProject
+        if (!project.isDefined) {
+          log.error("could not find dependency %s".format(dep))
+          System.exit(1)
+        }
+
+        dep.name -> project.get
+      }
+
+    Map() ++ super.subProjects ++ mapped ++ explicit
   }
 
   override def managedClasspath(config: Configuration): PathFinder =
