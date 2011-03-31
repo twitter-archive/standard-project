@@ -11,7 +11,10 @@ trait DefaultRepos extends StandardManagedProject with Environmentalist {
   override def repositories = {
     val proxyRepo = environment.get("SBT_PROXY_REPO") match {
       case None =>
-        if (environment.get("SBT_TWITTER").isDefined) {
+        if (environment.get("SBT_OPEN_TWITTER").isDefined) {
+          // backward compatibility: twitter's internal open source proxy
+          Some("http://artifactory.local.twitter.com/open-source/")
+        } else if (environment.get("SBT_TWITTER").isDefined) {
           // backward compatibility: twitter's internal proxy
           Some("http://artifactory.local.twitter.com/repo/")
         } else {
