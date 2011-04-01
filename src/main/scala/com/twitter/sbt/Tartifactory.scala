@@ -84,7 +84,7 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
 
   override def repositories = {
     val projectRepos = if (useArtifactory) {
-      artifactoryRepos ++ super.repositories
+      artifactoryRepos
     } else {
       externalRepos ++ internalRepos ++ super.repositories
     }
