@@ -57,36 +57,16 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
     "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
     "jboss" at "http://repository.jboss.org/nexus/content/groups/public/")
 
-  def internalRepos = if (useInternalRepos) {
-    // set up an ivy style resolver for binaries.local.twitter.com.  I hate this.
-    val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
-    val internalIvy = Resolver.url("twitter-private-ivy",
-                                   localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
-    val internalM2 = "twitter-private-m2" at "http://binaries.local.twitter.com/maven/"
-    if (handleIvyArtifactsInArtifactory) {
-      List(internalIvy, internalM2)
-    } else {
-      List(internalM2)
-    }
-  } else {
-    Nil
-  }
-
-  def useInternalRepos = tartEnv.get("SBT_TWITTER") match {
-    case Some(v) => v == "true"
-    case _ => false
-  }
-
-  def useArtifactory = tartEnv.get("ARTIFACTORY_TWITTER") match {
-    case Some(v) => v != "false"
-    case _ => true
-  }
+  /**
+   * Override this if you need to disable artifactory.
+   */
+  def useArtifactory = tartEnv.get("SBT_TWITTER").isDefined
 
   override def repositories = {
     val projectRepos = if (useArtifactory) {
       artifactoryRepos
     } else {
-      externalRepos ++ internalRepos ++ super.repositories
+      externalRepos ++ super.repositories
     }
     Set(projectRepos: _*)
   }
@@ -98,4 +78,8 @@ trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
       super.ivyRepositories
     }
   }
+}
+
+trait OpensourceRepos extends TartifactoryRepos {
+  override def proxyRepo = "open-source"
 }

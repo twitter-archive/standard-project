@@ -21,6 +21,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   with DependencyChecking
   with PublishLocalWithMavenStyleBasePattern
   with BuildProperties
+  with IntransitiveCompiles
 {
   override def dependencyPath = "libs"
 
