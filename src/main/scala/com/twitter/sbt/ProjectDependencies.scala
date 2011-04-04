@@ -53,27 +53,16 @@ trait ProjectDependencies
     old
   }
 
-  protected def withProjectDependenciesOff[A](f: () => A): A = {
-    val old = setUseProjectDependencies(false)
-    val oldProjects =
-      super.subProjects
-        .filter { _.isInstanceOf[ProjectDependencies] }
-        .map    { _.asInstanceOf[ProjectDependencies] }
-        .map    { p => (p, p.setUseProjectDependencies(false)) }
-
-    println("WITH OFF %s".format(oldProjects.mkString(", ")))
-
-    val result = f()
-
-    setUseProjectDependencies(old)
-    oldProjects foreach { case (p, old) => p.setUseProjectDependencies(old) }
-    result
-  }
-
-  private var isParentProject = true
-  def setIsSubProject() {
-    isParentProject = false
-  }
+  def parentProject =
+    info.parent match {
+      case Some(parent: ProjectDependencies)
+        if parent.isSubProject(this) => parent
+      case Some(_) =>
+        log.error("Parent project of %s is not a ProjectDependencies project(!)".format(name))
+        this
+      case None =>
+        this
+    }
 
   override def shouldCheckOutputDirectories = false
 
@@ -96,7 +85,7 @@ trait ProjectDependencies
         projectPath flatMap { projectPath =>
           val parentProject =
             projectCache("path:%s".format(projectPath)) { Some(project(projectPath)) }
-          val foundProject = parentProject flatMap { parentProject => 
+          parentProject flatMap { parentProject => 
             if (parentProject.name != name) {
               // Try to find it in a subproject.
               parentProject.subProjects.find { _._2.name == name } map { _._2 }
@@ -104,9 +93,6 @@ trait ProjectDependencies
               Some(parentProject)
             }
           }
-
-          foundProject foreach { setProjectCacheStoreInProject(_, projectCacheStore) }
-          foundProject
         }
       }
     }
@@ -144,17 +130,9 @@ trait ProjectDependencies
     _projectDependencies ++= deps
   }
 
-  private[this] var subProjectsInitialized = false
+  def isSubProject(p: Project) = super.subProjects.values contains p
 
   override def subProjects = {
-    if (!subProjectsInitialized) {
-      super.subProjects foreach { case (_, p) =>
-        p.asInstanceOf[ProjectDependencies].setIsSubProject()
-        setProjectCacheStoreInProject(p, projectCacheStore)
-      }
-      subProjectsInitialized = true
-    }
-
     if (useProjectDependencies) {
       val projects = _projectDependencies flatMap { dep =>
         dep.resolveProject map { project =>
@@ -192,7 +170,7 @@ trait ProjectDependencies
    */
 
   def lastReleasedVersion(): Option[Version] = {
-    val project = if (isParentProject) this else info.parent.get
+    val project = parentProject
     val releasePropertiesPath =
       Path.fromFile(project.info.projectPath.absolutePath) / "project" / "release.properties"
     val prop = new Properties
@@ -212,7 +190,7 @@ trait ProjectDependencies
 
   lazy val updateVersions = task {
     // TODO: use builderPath?
-    val project = if (isParentProject) this else info.parent.get
+    val project = parentProject
 
     val versionsPath =
       Path.fromFile(project.info.projectPath.absolutePath) / "project" / "versions.properties"
@@ -306,8 +284,8 @@ trait ProjectDependencies
   }
 
   lazy val showParent = task {
-    log.info("my name is: %s and my parent is: %s. my parent project status is: %s".format(
-      name, info.parent, isParentProject))
+    log.info("my name is: %s and my parent is: %s. my parentProject is: %s".format(
+      name, info.parent, parentProject))
     None
   }
 

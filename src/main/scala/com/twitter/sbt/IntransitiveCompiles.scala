@@ -59,11 +59,13 @@ trait IntransitiveCompiles extends DefaultProject with Environmentalist {
 
   lazy val transitive = task {
     System.setProperty("sbt.intransitive", "false")
+    log.info("project builds are now intransitive")
     None
   }
 
   lazy val intransitive = task {
     System.setProperty("sbt.intransitive", "true")
+    log.info("project builds are now transitive")
     None
   }
 }
