@@ -25,6 +25,8 @@ trait IntransitiveCompiles extends DefaultProject with Environmentalist {
       compiler: AnalyzingCompiler)
     extends CompileConditional(config, compiler)
   {
+    // This is the meat of the trick: we set last modified time to 0
+    // for all external dependencies.
     override protected def externalInfo(externals: Iterable[File]) =
       externals map { e => (e, ExternalInfo(true, 0L)) }
   }

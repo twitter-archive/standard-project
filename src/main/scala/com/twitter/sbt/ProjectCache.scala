@@ -32,8 +32,6 @@ trait ProjectCache extends BasicManagedProject {
   }
 
   def setProjectCacheStore(store: HashMap[String, Project]) {
-    // // Compute overlap?
-    // projectCacheStore foreach { case (k, v) => store(k) = v }
     _projectCacheStore = store
 
     subProjects foreach { case (_, p) =>

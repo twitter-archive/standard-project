@@ -327,6 +327,9 @@ trait ProjectDependencies
     log.info("Project closure:")
     projectClosure foreach { project =>
       println("  " + project + " " + project.hashCode)
+      project.dependencies foreach { dep =>
+        println("    => " + dep + " " + dep.hashCode)
+      }
     }
 
     None
