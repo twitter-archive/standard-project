@@ -42,14 +42,14 @@ trait IntransitiveCompiles extends DefaultProject with Environmentalist {
 		  intransitiveMainCompileConditional.run
 		else
       mainCompileConditional.run
-  } describedAs "compile the project [possibly intransitively]"
+  } dependsOn(super.compileAction.dependencies: _*) describedAs "compile the project [possibly intransitively]"
 
   override def testCompileAction = task {
     if (isIntransitive)
 		  intransitiveTestCompileConditional.run
 		else
       testCompileConditional.run
-  } describedAs "test-compile the project [possibly intransitively]"
+  } dependsOn(super.testCompileAction.dependencies: _*) describedAs "test-compile the project [possibly intransitively]"
 
   lazy val queryTransitive = task {
     val onOrOff = if (isIntransitive) "OFF" else "ON"

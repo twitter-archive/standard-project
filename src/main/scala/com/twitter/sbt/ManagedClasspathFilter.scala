@@ -16,59 +16,72 @@ import org.apache.ivy.core.retrieve.RetrieveOptions
 import org.apache.ivy.core.resolve.ResolveOptions
 import org.apache.ivy.core.resolve.IvyNode
 import org.apache.ivy.core.LogOptions
-
+import org.apache.ivy.core.IvyPatternHelper
+import org.apache.ivy.core.report.ArtifactDownloadReport
+import org.apache.ivy.plugins.report.XmlReportParser
+import org.apache.ivy.core.resolve.ResolveOptions
+		
 import _root_.sbt._
 
 trait ManagedClasspathFilter extends BasicManagedProject {
   /**
    * Define this to filter out dependencies.
    */
-  def managedDependencyFilter(organization: String, name: String): Boolean
-
-  case class IvyJar(organization: String, name: String, jar: String)
+  def managedDependencyFilter(config: Configuration, m: ModuleID): Boolean
 
   // I'm submitting to this sbt antipattern here.  Lean into it. :-(
-  lazy val ivyJars = {
+  lazy val ivyJars: Map[String, ModuleID] = {
     val source = io.Source.fromFile(new java.io.File(info.projectDirectory, ".ivyjars"))
     Map() ++ { source.getLines map { dirtyLine =>
       val line = dirtyLine.stripLineEnd
-      // error out on parse error?
-      val Array(organization, name, jar) = line.split("\t")
-      (jar -> IvyJar(organization, name, jar))
+      val Array(path, organization, name, revision) = line.split("\t")
+      (path -> ModuleID(organization, name, revision))
     }}
   }
 
-  override def inlineSettings = {
-    val filteredDeps = libraryDependencies.filter { m =>
-      managedDependencyFilter(m.organization, m.name)
+  /**
+   * This enormously gross hack is due to the fact that
+   * managedClasspath() calls into itself in order to provide a
+   * classpath for a given configuration that consists of the
+   * classpaths of subconfigurations (eg. Compile implies Default).
+   */
+  private[this] var doFilter = true
+  def unfilteredManagedClasspath(config: Configuration): PathFinder = {
+    require(doFilter)
+    doFilter = false
+    try {
+      super.managedClasspath(config)
+    } finally {
+      doFilter = true
     }
-
-    new InlineConfiguration(
-      projectID, filteredDeps, ivyXML, ivyConfigurations,
-      defaultConfiguration, ivyScala, ivyValidate)
   }
 
-  override def managedClasspath(config: Configuration): PathFinder =
+  // TODO: use classpathFilter?
+
+  override def managedClasspath(config: Configuration): PathFinder = {
+    if (!doFilter) return super.managedClasspath(config)
+
     super.managedClasspath(config) filter { path =>
-			ivyJars.get(path.name) match {
-				case Some(IvyJar(organization, name, _)) =>
-          managedDependencyFilter(organization, name)
+			ivyJars.get(path.absolutePath) match {
+        case Some(m) =>
+          managedDependencyFilter(config, m)
 
 				case None =>
 					// Exclude stuff we don't know about.
-					// log.warn("ManagedClasspathFilter: %s NOT FOUND, excluding".format(path.name))
+					log.warn("ManagedClasspathFilter: %s NOT FOUND in .ivyjars, excluding".format(path))
 					false
 			}
 		}
+  }
 
   /**
    * Ivy resolution / updating.
    */
 
-  private def resolve(logging: UpdateLogging.Value)(
+  private def resolve(
+    logging: UpdateLogging.Value,
     ivy: Ivy,
-    module: DefaultModuleDescriptor,
-    defaultConf: String
+    module: DefaultModuleDescriptor
   ) = {
 		val resolveOptions = new ResolveOptions
 		resolveOptions.setLog(ivyLogLevel(logging))
@@ -78,38 +91,53 @@ trait ManagedClasspathFilter extends BasicManagedProject {
         resolveReport.getAllProblemMessages.toArray.map(_.toString).toList.removeDuplicates)
     }
 
-    val file = new File(info.projectDirectory, ".ivyjars")
-		val out = new java.io.PrintWriter(new java.io.FileWriter(file))
-
-		// println("RESOLVE")
-    // for (dep <- resolveReport.getDependencies; id = dep.asInstanceOf[IvyNode].getId) {
-    //   println("ID %s".format(id))
-    // }
-    
-    for (dep <- resolveReport.getDependencies; id = dep.asInstanceOf[IvyNode].getId) {
-			out.println("%s\t%s\t%s-%s.jar".format(
-        id.getOrganisation, id.getName,
-        id.getName, id.getRevision))
-    }
-
-		out.close()
+    resolveReport
 	}
 
 	private def update(module: IvySbt#Module, configuration: UpdateConfiguration) {
 		module.withModule { case (ivy, md, default) =>
 			import configuration._
-			resolve(logging)(ivy, md, default)
+      val report = resolve(logging, ivy, md)
 			val retrieveOptions = new RetrieveOptions
 			retrieveOptions.setSync(synchronize)
 
 			val patternBase = retrieveDirectory.getAbsolutePath
 			val pattern =
-				if(patternBase.endsWith(File.separator))
+				if (patternBase.endsWith(File.separator))
 					patternBase + configuration.outputPattern
 				else
 					patternBase + File.separatorChar + configuration.outputPattern
 
-      ivy.retrieve(md.getModuleRevisionId, pattern, retrieveOptions)
+      val mrid = md.getModuleRevisionId
+      ivy.retrieve(mrid, pattern, retrieveOptions)
+    
+      /**
+       * Report on the retrieve.
+       */
+
+      val settings = ivy.getSettings
+      val cacheManager = settings.getResolutionCacheManager
+      val configs = md.getConfigurationsNames()
+      
+      type ArtifactMap = java.util.Map[ArtifactDownloadReport, java.util.Set[String]]
+
+      val artifactsToCopy = ivy.getRetrieveEngine.determineArtifactsToCopy(
+        mrid, pattern, retrieveOptions).asInstanceOf[ArtifactMap]
+
+      val file = new File(info.projectDirectory, ".ivyjars")
+		  val out = new java.io.PrintWriter(new java.io.FileWriter(file))
+
+      artifactsToCopy foreach { case (report, paths) =>
+        val artifact = report.getArtifact
+        val artifactMrid = artifact.getModuleRevisionId
+        paths foreach { path =>
+          out.println("%s\t%s\t%s\t%s".format(
+            path, artifactMrid.getOrganisation,
+            artifactMrid.getName, artifactMrid.getRevision))
+        }
+      }
+
+		  out.close()
 		}
 	}
 
