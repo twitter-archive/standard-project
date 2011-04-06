@@ -58,18 +58,6 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
 
   override def packageAction = super.packageAction dependsOn(testAction)
 
-  // if IdeaProject is loaded, make "update" update the idea file too.
-  // this is really a workaround for fixing the idea plugin.
-  override def updateAction = {
-    super.updateAction && task {
-      if (getClass.getInterfaces.toList.map { _.getName } contains "IdeaProject") {
-        import Process._
-        ("sbt idea" !)
-      }
-      None
-    }
-  }
-
   // Optional ramdisk.
   private[this] val ramdiskRoot = environment.get("SBT_RAMDISK_ROOT")
   private[this] val ramdiskTargetName = "target-ramdisk"
