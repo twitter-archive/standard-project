@@ -63,8 +63,8 @@ trait PublishSite extends DefaultProject {
     }
   }
 
-  def copyGeneratedDoc() = {
-    scalaDocDir.foreach { path => FileUtilities.sync(path, docOutputPath, log) }
+  def copyGeneratedDoc(): Option[String] = {
+    scalaDocDir.flatMap { path => FileUtilities.sync(path, docOutputPath, log) }
   }
 
   def copySite() = {
