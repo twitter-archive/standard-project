@@ -73,17 +73,28 @@ pre code {
   font-weight: normal;
 }
 </style>
-
 </head>
+
 <body>
+<h1> ${projectName} </h1>
+
+<ul>
 <#if readme??>
-<h1>README</h1>
+<li> <a href="#_readme">README</a> </li>
+</#if>
+<#if scaladoc??>
+<li> <a href="doc/main/api/index.html">Scala API documentation</a> </li>
+</#if>
+</ul>
+
+<p/>
+<hr/>
+<p/>
+
+<#if readme??>
+<h1><a name="_readme">README</a></h1>
 ${readme}
 </#if>
 
-<#if scaladoc??>
-<h1>DOC</h1>
-<a href="doc/main/api/index.html">ScalaDoc</a>
-</#if>
 </body>
 </html>
