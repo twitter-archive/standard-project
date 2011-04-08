@@ -9,8 +9,12 @@ import com.petebevin.markdown._
 import scala.io._
 
 trait PublishSite extends DefaultProject {
+  /** where a pre-generated web site might exist */
+  def sitePath: Path = "site"
   /** where we'll stick our generated web site */
   def siteOutputPath = outputRootPath / "site"
+  /** where scaladocs end up */
+  def docOutputPath = siteOutputPath / "doc"
   /** where our generated doc goes */
   def scalaDocDir: Option[Path] = Some(docPath)
   /** make the directory for our site */
@@ -20,25 +24,54 @@ trait PublishSite extends DefaultProject {
   /** the filename of our readme */
   def readmeFileName: Option[String] = None
 
-  // Jank. But getting a template in a plugin readable from the project seems hard
-  def indexTemplate = """
-<html>
-<head>
-<title>${projectName}</title>
-</head>
-<body>
-<#if readme??>
-<h1>README</h1>
-${readme}
-</#if>
+  def indexTemplate = Source.fromInputStream(getClass.getResourceAsStream("/index.template")).mkString
 
-<#if scaladoc??>
-<h1>DOC</h1>
-<a href="doc/main/api/index.html">ScalaDoc</a>
-</#if>
-</body>
-</html>
-  """
+  // build an index.html if one doesn't already exist.
+  def buildIndex(cfg: FreeConfig): Option[String] = {
+    val oldIndex = (siteOutputPath / "index.html").asFile
+    if (! oldIndex.exists) {
+      val index = (siteOutputPath / "index.html").asFile
+      val writer = new BufferedWriter(new FileWriter(index))
+      val model = new java.util.HashMap[Any, Any]()
+      model.put("projectName", projectName.value)
+      scalaDocDir.foreach(model.put("scaladoc",  _))
+      findReadme.map(processReadme(_)).foreach(model.put("readme", _))
+      val template = cfg.getTemplate("index")
+      template.process(model, writer)
+      writer.close()
+    }
+    None
+  }
+
+  def findReadme() = {
+    readmeFileName match {
+      case Some(s) => Some(s)
+      case None => {
+        val basePath = Path.fromFile(outputRootPath + File.separator + "..")
+        List(basePath / "README", basePath / "README.md").find(candidate => candidate.asFile.exists) map {_.toString}
+      }
+    }
+  }
+
+  def processReadme(fileName: String): String = {
+    val text = Source.fromFile(fileName).mkString
+    if (isReadmeMarkdown) {
+      val processor = new MarkdownProcessor()
+      processor.markdown(text)
+    } else {
+      text
+    }
+  }
+
+  def copyGeneratedDoc() = {
+    scalaDocDir.foreach { path => FileUtilities.sync(path, docOutputPath, log) }
+  }
+
+  def copySite() = {
+    FileUtilities.clean(siteOutputPath, log) orElse
+      FileUtilities.sync(sitePath, siteOutputPath, log) orElse
+      FileUtilities.createDirectory(siteOutputPath, log)
+  }
 
   def buildSiteTask = task {
     val cfg = new FreeConfig()
@@ -46,13 +79,9 @@ ${readme}
     templateLoader.putTemplate("index", indexTemplate)
     cfg.setTemplateLoader(templateLoader)
 
-    buildSiteDir()
-    buildIndex(cfg)
-    if (copyGeneratedDoc() != 0) {
-      Some("failed to copy generated doc")
-    } else {
-      None
-    }
+    copySite() orElse
+      buildIndex(cfg) orElse
+      copyGeneratedDoc()
   }
 
   lazy val buildSite = buildSiteTask dependsOn(`package`, packageDocs) describedAs "builds a dope site"
@@ -158,53 +187,4 @@ ${readme}
   }
 
   lazy val publishToGithub = publishToGithubTask dependsOn(buildSite) describedAs "publishes to github"
-
-  def buildIndex(cfg: FreeConfig) = {
-    val oldIndex = (siteOutputPath / "index.html").asFile
-    if (oldIndex.exists) {
-      oldIndex.delete
-    }
-    val index = (siteOutputPath / "index.html").asFile
-    val writer = new BufferedWriter(new FileWriter(index))
-    val model = new java.util.HashMap[Any, Any]()
-    model.put("projectName", projectName.value)
-    scalaDocDir.foreach(model.put("scaladoc",  _))
-    findReadme.map(processReadme(_)).foreach(model.put("readme", _))
-    val template = cfg.getTemplate("index")
-    template.process(model, writer)
-    writer.close()
-  }
-
-  def findReadme() = {
-    readmeFileName match {
-      case Some(s) => Some(s)
-      case None => {
-        val basePath = Path.fromFile(outputRootPath + File.separator + "..")
-        List(basePath / "README", basePath / "README.md").find(candidate => candidate.asFile.exists) map {_.toString}
-      }
-    }
-  }
-  def processReadme(fileName: String): String = {
-    val source = Source.fromFile(fileName)
-    val text = source.mkString
-    if (isReadmeMarkdown) {
-      val processor = new MarkdownProcessor()
-      processor.markdown(text)
-    } else {
-      text
-    }
-  }
-
-  def copyGeneratedDoc() = {
-    scalaDocDir match {
-      case Some(docDir) => {
-        val doc = siteOutputPath.asFile
-        if (!doc.exists) {
-          doc.mkdirs()
-        }
-        "cp -r %s %s".format(docDir.asFile, doc)!
-      }
-      case None => 0
-    }
-  }
 }
