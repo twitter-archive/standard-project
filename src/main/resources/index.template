@@ -92,7 +92,7 @@ pre code {
 <p/>
 
 <#if readme??>
-<h1><a name="_readme">README</a></h1>
+<a name="_readme"></a>
 ${readme}
 </#if>
 
