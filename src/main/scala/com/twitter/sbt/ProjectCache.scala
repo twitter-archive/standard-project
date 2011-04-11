@@ -20,7 +20,7 @@ trait ProjectCache extends BasicManagedProject {
 
       case Some(parent) =>
         val m = try {
-          parent.getClass.getDeclaredMethod("projectCacheStore")
+          parent.getClass.getMethod("projectCacheStore")
         } catch {
           case e: NoSuchMethodException =>
             log.error("Parent project is invalid!")

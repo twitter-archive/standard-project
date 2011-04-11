@@ -24,10 +24,10 @@ import org.apache.ivy.core.resolve.ResolveOptions
 import _root_.sbt._
 
 trait ManagedClasspathFilter extends BasicManagedProject {
-  /**
-   * Define this to filter out dependencies.
-   */
-  def managedDependencyFilter(config: Configuration, m: ModuleID): Boolean
+  // /**
+  //  * Define this to filter out dependencies.
+  //  */
+  // def managedDependencyFilter(config: Configuration, m: ModuleID): Boolean
 
   // I'm submitting to this sbt antipattern here.  Lean into it. :-(
   lazy val ivyJars: Map[String, ModuleID] = {
@@ -39,40 +39,50 @@ trait ManagedClasspathFilter extends BasicManagedProject {
     }}
   }
 
-  /**
-   * This enormously gross hack is due to the fact that
-   * managedClasspath() calls into itself in order to provide a
-   * classpath for a given configuration that consists of the
-   * classpaths of subconfigurations (eg. Compile implies Default).
-   */
-  private[this] var doFilter = true
-  def unfilteredManagedClasspath(config: Configuration): PathFinder = {
-    require(doFilter)
-    doFilter = false
-    try {
-      super.managedClasspath(config)
-    } finally {
-      doFilter = true
-    }
-  }
+  // /**
+  //  * This enormously gross hack is due to the fact that
+  //  * managedClasspath() calls into itself in order to provide a
+  //  * classpath for a given configuration that consists of the
+  //  * classpaths of subconfigurations (eg. Compile implies Default).
+  //  */
+  // private[this] var doFilter = true
+  // def unfilteredManagedClasspath(config: Configuration): PathFinder = {
+  //   require(doFilter)
+  //   doFilter = false
+  //   try {
+  //     super.managedClasspath(config)
+  //   } finally {
+  //     doFilter = true
+  //   }
+  // }
 
-  // TODO: use classpathFilter?
+  // // TODO: use classpathFilter?
 
-  override def managedClasspath(config: Configuration): PathFinder = {
-    if (!doFilter) return super.managedClasspath(config)
-
-    super.managedClasspath(config) filter { path =>
-			ivyJars.get(path.absolutePath) match {
-        case Some(m) =>
-          managedDependencyFilter(config, m)
-
+  def filterPathFinderClasspath(finder: PathFinder)(f: (ModuleID => Boolean)): PathFinder =
+    finder.filter { path =>
+      ivyJars.get(path.absolutePath) match {
+        case Some(m) => f(m)
 				case None =>
 					// Exclude stuff we don't know about.
 					log.warn("ManagedClasspathFilter: %s NOT FOUND in .ivyjars, excluding".format(path))
 					false
 			}
-		}
-  }
+    }
+
+  // def filteredManagedClasspath(
+  //   config: Configuration,
+  //   f: (ModuleID => Boolean)
+  // ): PathFinder = {
+  //   super.managedClasspath(config) filter { path =>
+	//   	ivyJars.get(path.absolutePath) match {
+  //       case Some(m) => f(m)
+	//   		case None =>
+	//   			// Exclude stuff we don't know about.
+	//   			log.warn("ManagedClasspathFilter: %s NOT FOUND in .ivyjars, excluding".format(path))
+	//   			false
+	//   	}
+	//   }
+  // }
 
   /**
    * Ivy resolution / updating.
@@ -155,4 +165,10 @@ trait ManagedClasspathFilter extends BasicManagedProject {
     configuration: => UpdateConfiguration
   ) = ivyTask { update(module, configuration) }
 
+	lazy val showUpdateModule = task {
+    updateIvyModule.withModule { case (_, md, _) =>
+      println(md)
+    }
+    None
+  }
 }

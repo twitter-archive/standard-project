@@ -10,14 +10,14 @@ package com.twitter.sbt
 import scala.collection.mutable.{HashSet, HashMap}
 
 import java.util.Properties
-import java.io.{FileInputStream, FileOutputStream}
+import java.io.{FileInputStream, FileOutputStream, File, FileWriter, PrintWriter}
 import pimpedversion._
 import collection.jcl.Conversions._
 
 import _root_.sbt._
 
 trait ParentProjectDependencies
-  extends BasicManagedProject
+  extends BasicDependencyProject
   with ProjectCache
   with ManagedClasspathFilter
   with Environmentalist
@@ -32,11 +32,23 @@ trait ParentProjectDependencies
     keys map { key => "%s+%s".format(key, prop.getProperty(key)) } mkString
   }
 
-  def getRootProjectClosure: List[Project] = {
+  /**
+   * Returns the projectClosure for the root project.
+   */
+  def rootProjectClosure: List[Project] = {
     info.parent match {
       case Some(parent) =>
-        val m = parent.getClass.getDeclaredMethod("getRootProjectClosure")
-        m.invoke(parent).asInstanceOf[List[Project]]
+        try {
+          val m = parent.getClass.getMethod("rootProjectClosure")
+          m.invoke(parent).asInstanceOf[List[Project]]
+        } catch {
+          case e =>
+            log.error(
+              ("Parent project of %s is not " +
+               "a [Parent]ProjectDependencies project!").format(name))
+            throw e
+        }
+
       case None =>
         projectClosure
     }
@@ -66,30 +78,26 @@ trait ParentProjectDependencies
     old
   }
 
-  // def parentProject: ParentProjectDependencies =
-  //   info.parent match {
-  //     case Some(parent: ParentProjectDependencies) => parent
-  //     case Some(_) =>
-  //       throw new Exception(
-  //         "Parent project of %s isn't a ProjectDependencies project!".format(name))
-  //     case None => this
-  //   }
-
-  def subProjectParent =
+  /**
+   * Finds the the parent of this subproject, returns ``this'' if we
+   * already are the parent project. This is needed to distinguish
+   * "parent" projects vs. external dependencies in the DAG.
+   */
+  def subProjectParent: Project =
     info.parent match {
       case Some(parent: ParentProjectDependencies) =>
-        if (parent.isSubProject(this))
-          parent
-        else
-          this
-      case Some(_) =>
-        log.error("Parent project of %s is not a ProjectDependencies project(!)".format(name))
-        this
-      case None =>
+        if (parent.isSubProject(this)) parent else this
+      case _ =>
         this
     }
 
-  override def shouldCheckOutputDirectories = false
+  def projectSubProjects: Seq[Project] =
+    info.parent match {
+      case Some(parent: ParentProjectDependencies) =>
+        parent.actualSubProjects
+      case _ =>
+        actualSubProjects
+    }
 
   case class ProjectDependency(relPath: String, name: String) {
     def parentDependency: ProjectDependency =
@@ -125,7 +133,7 @@ trait ParentProjectDependencies
     def resolveModuleID: Option[ModuleID] = {
       val project = subProjectParent
       val versionsPath =
-        Path.fromFile(project.info.projectPath.absolutePath) / "project" / "versions.properties"
+        Path.fromFile(project.info.projectDirectory) / "project" / "versions.properties"
 
       val prop = new Properties
       prop.load(new FileInputStream(versionsPath.toString))
@@ -157,6 +165,8 @@ trait ParentProjectDependencies
 
   def isSubProject(p: Project) = super.subProjects.values contains p
 
+  def actualSubProjects: Seq[Project] = super.subProjects.map(_._2).toSeq
+
   override def subProjects = {
     if (useProjectDependencies) {
       val projects = _projectDependencies flatMap { dep =>
@@ -178,13 +188,14 @@ trait ParentProjectDependencies
    * we can use the current version-yes, do this.  and warn when it
    * happens.]
    */
+
   override def libraryDependencies =
     if (useProjectDependencies) {
       val missingProjectDependencies =
         _projectDependencies filter { !_.resolveProject.isDefined }
-      super.libraryDependencies ++ (
+      super.libraryDependencies ++ {
         Set() ++ missingProjectDependencies flatMap { _.resolveModuleID }
-      )
+      }
     } else {
       (Set() ++ _projectDependencies map { _.resolveModuleID.get }) ++ super.libraryDependencies
     }
@@ -193,21 +204,67 @@ trait ParentProjectDependencies
    * Filters out dependencies that are in our DAG.
    */
 
-  // XXX: what's the best way to get to the *current* project?
-  // (eg. root project, or result of ``project X'')
+  private def parentManagedDependencyFilter(config: Configuration, m: ModuleID): Boolean =
+    info.parent match {
+      case Some(parent) =>
+        try {
+          val method = parent.getClass.getMethod(
+            "managedDependencyFilter",
+            classOf[Configuration], classOf[ModuleID])
+          method.invoke(parent, config, m).asInstanceOf[Boolean]
+        } catch {
+          case e =>
+            log.error(
+              ("Parent project of %s is not " +
+               "a [Parent]ProjectDependencies project!").format(name))
+            throw e
+        }
 
-  def managedDependencyFilter(config: Configuration, m: ModuleID): Boolean = {
-    val res = if (!useProjectDependencies)
-      true 
-    else if (config == Configurations.Provided)
-      false
-    else {
-      !(getRootProjectClosure
-        exists { p => p.organization == m.organization && p.name == m.name })
+      case None =>
+        true
     }
 
-    res
+  def filteredProjectClasspath(
+    config: Configuration, projects: List[Project]
+  ): PathFinder = fullUnmanagedClasspath(config) +++ {
+    config match {
+      case Configurations.Provided =>
+        Path.emptyPathFinder
+      case config =>
+        filterPathFinderClasspath(managedClasspath(config)) { m =>
+          !(projects exists { p => p.organization == m.organization && p.name == m.name })
+        }
+    }
   }
+
+	override def fullClasspath(config: Configuration): PathFinder =
+		if (!useProjectDependencies) {
+      super.fullClasspath(config)
+    } else {
+      Path.lazyPathFinder {
+        val set = new HashSet[Path]
+		    for (project <- topologicalSort) {
+          val method = project.getClass.getMethod(
+						"filteredProjectClasspath",
+            classOf[Configuration], classOf[List[Project]])
+
+					val queryConfig =
+            if (config == Configurations.Test &&
+                (project ne this) && info.dependencies.forall(_ ne project)) {
+              Configurations.Runtime
+            } else {
+              config
+            }
+
+          val projectClasspath =
+						method.invoke(project, queryConfig, projectClosure).asInstanceOf[PathFinder]
+
+					set ++= projectClasspath.get
+		    }
+
+		    set.toList
+		  }
+    }
 
   /**
    * Release management.
@@ -216,7 +273,7 @@ trait ParentProjectDependencies
   def lastReleasedVersion(): Option[Version] = {
     val project = subProjectParent
     val releasePropertiesPath =
-      Path.fromFile(project.info.projectPath.absolutePath) / "project" / "release.properties"
+      Path.fromFile(project.info.projectDirectory) / "project" / "release.properties"
     val prop = new Properties
     if (!releasePropertiesPath.exists)
       return None
@@ -232,12 +289,16 @@ trait ParentProjectDependencies
     }
   }
 
+  /**
+   * Update versions for projectDependencies. We do so by querying our
+   * dependencies for their currently released versions.
+   */
   lazy val updateVersions = task {
     // TODO: use builderPath?
     val project = subProjectParent
 
     val versionsPath =
-      Path.fromFile(project.info.projectPath.absolutePath) / "project" / "versions.properties"
+      Path.fromFile(project.info.projectDirectory) / "project" / "versions.properties"
 
     // Merge the existing one when it exists.
     val prop = new Properties
@@ -248,7 +309,7 @@ trait ParentProjectDependencies
 
     val projects = _projectDependencies flatMap { dep => dep.resolveProject map { (_, dep) } }
     projects foreach { case (p, dep) =>
-      val m = p.getClass.getDeclaredMethod("lastReleasedVersion")
+      val m = p.getClass.getMethod("lastReleasedVersion")
 			val version = if (m ne null) {
 				m.invoke(p).asInstanceOf[Option[Version]]
 			} else {
@@ -273,50 +334,16 @@ trait ParentProjectDependencies
     None
   }
 
-  // Unpossible. :-(
-
-	// // projectIntransitiveActions
-  // override def act(name: String): Option[String] = {
-  //   println("ACT %s".format(name))
-  //   val r = if (name == "publish-local") {
-  //     println("TURNING OFF project deps")
-  //     withProjectDependenciesOff { () =>
-  //       super.act(name)
-  //     }
-  //   } else
-  //     super.act(name)
-  //  
-  //   println("DONE!")
-  //   r
-  // }
-
-  // override lazy val publish = task { None }
-
-	// override def publishTask(
-  //   module: => IvySbt#Module,
-  //   publishConfiguration: => PublishConfiguration
-  // ) = task {
-  //   println("PUBLISH TASK!!!")
-  //   withProjectDependenciesOff {
-  //     println("running with OFF...")
-  //     val r = super.publishTask(module, publishConfiguration).run
-  //     println("~~~~~ running with OFF...")
-  //     r
-  //   }
-  // }
+  lazy val testProject = task { args =>
+    task {
+      projectSubProjects foreach { _.call("test-only", args) }
+      None
+    }
+  }
 
   /**
    * Utilities / debugging.
    */
-
-  lazy val fooBar = task {
-    super.subProjects foreach { sp =>
-      println("SUBPROJECT %s".format(sp))
-      println("SUBPROJECT %s".format(sp.isInstanceOf[ProjectDependencies]))
-    }
-
-    None
-  }
 
   lazy val toggleProjectDependencies = task {
     _useProjectDependencies = Some(!useProjectDependencies)
@@ -349,14 +376,20 @@ trait ParentProjectDependencies
     log.info("Project closure:")
     projectClosure foreach { project =>
       println("  " + project + " " + project.hashCode)
-      // project.dependencies foreach { dep =>
-      //   println("    => " + dep + " " + dep.hashCode)
-      // }
     }
 
     None
   }
 
+  lazy val showRootProjectClosure = task {
+    log.info("Root project closure:")
+    rootProjectClosure foreach { project =>
+      println("  " + project + " " + project.hashCode)
+    }
+
+    None
+  }
+  
   lazy val showManagedClasspath = task { args =>
     val name = args match {
       case Array(configName) => configName
@@ -373,6 +406,16 @@ trait ParentProjectDependencies
     }
   }
 
+  // override def managedClasspath(config: Configuration) = {
+  //   // println("MC: %s".format(config))
+  //   super.managedClasspath(config)
+  // }
+
+	lazy val showMe = task {
+    println(defaultConfigurationExtensions)
+    None
+  }
+
   lazy val showFullClasspath = task { args =>
     val name = args match {
       case Array(configName) => configName
@@ -384,7 +427,7 @@ trait ParentProjectDependencies
       fullClasspath(config).get foreach { path =>
         println("> %s".format(path.absolutePath))
       }
-       
+
       None
     }
   }
@@ -395,15 +438,27 @@ trait ParentProjectDependencies
   }
 
   lazy val showProjectPath = task {
-    println(info.projectPath.absolutePath)
-    println("> " + info.projectDirectory)
+    println(info.projectDirectory)
     None
   }
 }
 
 trait ProjectDependencies extends BasicScalaProject with ParentProjectDependencies {
-	override def optionalClasspath = unfilteredManagedClasspath(Configurations.Optional)
-	override def providedClasspath = unfilteredManagedClasspath(Configurations.Provided)
+  lazy val generateRunClasspath = task {
+    val file = new File(info.projectDirectory, ".run_classpath")
+		val out = new PrintWriter(new FileWriter(file))
+    runClasspath.get foreach { path => out.println(path.absolutePath) }
+    out.close()
+    None
+  }
+
+  lazy val showCompileClasspath = task {
+    compileClasspath.get foreach { path =>
+      println("> %s".format(path))
+    }
+
+    None
+  }
 
   lazy val showOptionalClasspath = task {
     optionalClasspath.get foreach { path =>
@@ -415,6 +470,20 @@ trait ProjectDependencies extends BasicScalaProject with ParentProjectDependenci
   lazy val showProvidedClasspath = task {
     providedClasspath.get foreach { path =>
 			println("> %s".format(path))
+		}
+    None
+  }
+
+  lazy val showTestClasspath = task {
+    testClasspath.get foreach { path =>
+			println("> %s".format(path.absolutePath))
+		}
+    None
+  }
+
+  lazy val showRunClasspath = task {
+    runClasspath.get foreach { path =>
+			println("> %s".format(path.absolutePath))
 		}
     None
   }
