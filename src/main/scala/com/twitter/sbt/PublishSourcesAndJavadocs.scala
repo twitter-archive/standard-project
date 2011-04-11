@@ -3,6 +3,10 @@ package com.twitter.sbt
 import _root_.sbt._
 
 trait PublishSourcesAndJavadocs extends DefaultProject {
+  // need to ask scaladoc not to try to understand any generated code (for example, thrift stuff):
+  def docSources = sources((mainJavaSourcePath##) +++ (mainScalaSourcePath##))
+  override def docAction = scaladocTask(mainLabel, docSources, mainDocPath, docClasspath, documentOptions).dependsOn(compile)
+
   override def packageDocsJar = defaultJarPath("-javadoc.jar")
   override def packageSrcJar= defaultJarPath("-sources.jar")
   val sourceArtifact = Artifact.sources(artifactID)
