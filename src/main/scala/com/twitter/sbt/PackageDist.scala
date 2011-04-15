@@ -21,14 +21,14 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
   // build the executable jar's classpath.
   // (why is it necessary to explicitly remove the target/{classes,resources} paths? hm.)
   def dependentJars = {
-		val jars = (
+    val jars = (
           jarsOfProjectDependencies
-      +++ paths(_.runClasspath)
-      +++ paths(_.mainDependencies.scalaJars)
+      +++ runClasspath
+      +++ mainDependencies.scalaJars
       --- paths(_.mainCompilePath)
       --- paths(_.mainResourcesOutputPath)
     )
-
+ 
     if (jars.get.find { jar => jar.name.startsWith("scala-library-") }.isDefined) {
       // workaround bug in sbt: if the compiler is explicitly included, don't include 2 versions
       // of the library.

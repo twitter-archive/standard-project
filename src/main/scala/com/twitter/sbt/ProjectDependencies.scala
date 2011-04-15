@@ -345,6 +345,60 @@ trait ParentProjectDependencies
    * Utilities / debugging.
    */
 
+  lazy val analyze = interactiveTask {
+    val projectsAndDependencies = projectClosure map { project =>
+      val dependencies = try {
+        val m = project.getClass.getMethod("libraryDependencies")
+        m.invoke(project).asInstanceOf[Set[ModuleID]]
+      } catch { case _ => Set() }
+
+      (project, dependencies)
+    }
+
+    projectsAndDependencies foreach { case (outerProject, dependencies) =>
+      projectClosure foreach { innerProject =>
+        dependencies foreach { dep =>
+          if (innerProject.organization == dep.organization &&
+              innerProject.name == dep.name) {
+            log.warn(
+              ("Project %s brings in dependency %s, but this is " +
+               "also provided by project %s").format(outerProject, dep, innerProject))
+          }
+        }
+      }
+    }
+
+    val dependencyToProject =
+      projectsAndDependencies flatMap { case (project, dependencies) =>
+        (dependencies map { (_, project) }).toList
+      }
+
+    val seenDeps =
+      new scala.collection.mutable.HashMap[(String, String), List[(ModuleID, Project)]]
+
+    dependencyToProject foreach { case (dep, project) =>
+      val k = (dep.organization, dep.name)
+      val l = seenDeps getOrElseUpdate(k, Nil: List[(ModuleID, Project)])
+
+      seenDeps((dep.organization, dep.name)) = (dep, project) :: l
+    }
+
+    seenDeps foreach { case ((org, name), deps) =>
+      val revisions = Set() ++ deps map { case (dep, _) => dep.revision }
+      if (revisions.size > 1) {
+        log.warn("Conflicting dependencies for %s:%s".format(org, name))
+        revisions foreach { rev =>
+          val projects =
+            deps filter { case (dep, _) => dep.revision == rev } map { case (_, p) => p }
+          val projectNames = projects map { _.name  }
+          log.warn("On revision %s: %s".format(rev, projectNames mkString ","))
+        }
+      }
+    }
+
+    None
+  }
+
   lazy val toggleProjectDependencies = task {
     _useProjectDependencies = Some(!useProjectDependencies)
     if (useProjectDependencies)
