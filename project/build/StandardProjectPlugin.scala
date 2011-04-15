@@ -3,10 +3,16 @@ import java.util.{Date, Properties}
 import java.text.SimpleDateFormat
 import fm.last.ivy.plugins.svnresolver.SvnResolver
 import scala.collection.jcl
+import com.twitter.sbt._
 import _root_.sbt._
 
 // TODO: somehow link on the real SubversionPublisher in the main source tree
-class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with SubversionPublisher with IdeaProject {
+class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info)
+with SubversionPublisher
+with IdeaProject
+with TartifactoryRepos
+with PublishSite
+with ReleaseManagement {
   override def disableCrossPaths = true
 
   override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
@@ -17,9 +23,6 @@ class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info) with 
   val scalate = "org.freemarker" % "freemarker" % "2.3.16"
 
   override def managedStyle = ManagedStyle.Maven
-  def artifactoryRoot = "http://artifactory.local.twitter.com"
-  def snapshotDeployRepo = "libs-snapshots-local"
-  def releaseDeployRepo = "libs-releases-local"
 
   override def pomExtra =
     <licenses>
