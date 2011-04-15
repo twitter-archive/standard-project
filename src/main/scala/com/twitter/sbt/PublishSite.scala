@@ -3,12 +3,12 @@ package com.twitter.sbt
 import _root_.sbt._
 import _root_.sbt.Process._
 import java.io._
-import freemarker.template.{Configuration => FreeConfig}
+import freemarker.template.{Configuration => FreeConfig, SimpleSequence}
 import freemarker.cache.StringTemplateLoader
 import com.petebevin.markdown._
 import scala.io._
 
-trait PublishSite extends DefaultProject {
+trait BuildSite extends MavenStyleScalaPaths {
   /** where a pre-generated web site might exist */
   def sitePath: Path = "site"
   /** where we'll stick our generated web site */
@@ -24,6 +24,9 @@ trait PublishSite extends DefaultProject {
   /** the filename of our readme */
   def readmeFileName: Option[String] = None
 
+  /** overridden */
+  val buildSite: Task
+
   def indexTemplate = Source.fromInputStream(getClass.getResourceAsStream("/index.template")).mkString
 
   // build an index.html if one doesn't already exist.
@@ -32,15 +35,20 @@ trait PublishSite extends DefaultProject {
     if (! oldIndex.exists) {
       val index = (siteOutputPath / "index.html").asFile
       val writer = new BufferedWriter(new FileWriter(index))
-      val model = new java.util.HashMap[Any, Any]()
-      model.put("projectName", projectName.value)
-      scalaDocDir.foreach(model.put("scaladoc",  _))
-      findReadme.map(processReadme(_)).foreach(model.put("readme", _))
+      val model = buildModel()
       val template = cfg.getTemplate("index")
       template.process(model, writer)
       writer.close()
     }
     None
+  }
+
+  def buildModel() = {
+    val model = new java.util.HashMap[Any, Any]()
+    model.put("projectName", projectName.value)
+    scalaDocDir.foreach(model.put("scaladoc",  _))
+    findReadme.map(processReadme(_)).foreach(model.put("readme", _))
+    model
   }
 
   def findReadme() = {
@@ -84,11 +92,9 @@ trait PublishSite extends DefaultProject {
       copyGeneratedDoc()
   }
 
-  lazy val buildSite = buildSiteTask dependsOn(`package`, packageDocs) describedAs "builds a dope site"
-
   def gitPublishRepo = Some("http://git.local.twitter.com/blabber.git")
 
-  def publishToGitTask = task {
+  def publishToGitTask = interactiveTask {
     gitPublishRepo.flatMap(repo => {
       val tmpdir = System.getProperty("java.io.tmpdir") match {
         case null => "/tmp"
@@ -142,7 +148,7 @@ trait PublishSite extends DefaultProject {
 
   lazy val publishToGit = publishToGitTask dependsOn(buildSite) describedAs "publishes to a git repo"
 
-  def publishToGithubTask = task {
+  def publishToGithubTask = interactiveTask {
     // if gh-pages branch doesn't exist, bail
     val ghPagesSetup: String = ("git branch -lr" #| "grep gh-pages")!!
 
@@ -187,4 +193,53 @@ trait PublishSite extends DefaultProject {
   }
 
   lazy val publishToGithub = publishToGithubTask dependsOn(buildSite) describedAs "publishes to github"
+
+}
+
+trait PublishParentSite extends ParentProject with BuildSite {
+  lazy val buildSite = buildSiteTask describedAs "builds a dope site"
+
+  override def indexTemplate = Source.fromInputStream(getClass.getResourceAsStream("/parent-index.template")).mkString
+
+  lazy val siteSubprojects: List[PublishSite] = subProjects.values.filter(subp => {
+    subp match {
+      case siteProject: PublishSite => true
+      case _ => false
+    }
+  }).toList.asInstanceOf[List[PublishSite]]
+
+  override def buildModel() = {
+    val model = super.buildModel
+    val modelList = new SimpleSequence()
+    siteSubprojects.foreach(p => modelList.add(p.name))
+    model.put("subprojects", modelList)
+    model
+  }
+
+  override def copySite() = {
+    FileUtilities.clean(siteOutputPath, log) orElse {
+      val results = siteSubprojects.map(siteProject => {
+        val from = siteProject.siteOutputPath
+        val to = siteOutputPath / siteProject.name
+        println("copying site for %s from %s to %s".format(siteProject.name, from, to))
+        FileUtilities.sync(from, to, log)
+      })
+      results.find(res => res != None).flatMap(f => f)
+    }
+  }
+
+  override def buildSiteTask = task {
+    val cfg = new FreeConfig()
+    val templateLoader = new StringTemplateLoader()
+    templateLoader.putTemplate("index", indexTemplate)
+    cfg.setTemplateLoader(templateLoader)
+
+    copySite() orElse
+      buildIndex(cfg) orElse
+      copyGeneratedDoc()
+  }
+}
+
+trait PublishSite extends DefaultProject with BuildSite with PublishSourcesAndJavadocs {
+  lazy val buildSite = buildSiteTask dependsOn(packageDocs) describedAs "builds a dope site"
 }
