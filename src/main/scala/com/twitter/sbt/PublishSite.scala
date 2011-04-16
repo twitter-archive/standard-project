@@ -11,10 +11,12 @@ import scala.io._
 trait PublishSite extends DefaultProject {
   /** where a pre-generated web site might exist */
   def sitePath: Path = "site"
+  /** where pre-generated docs might exist */
+  def docsPath: Path = "docs"
   /** where we'll stick our generated web site */
   def siteOutputPath = outputRootPath / "site"
   /** where scaladocs end up */
-  def docOutputPath = siteOutputPath / "doc"
+  def docOutputPath = siteOutputPath / "api"
   /** where our generated doc goes */
   def scalaDocDir: Option[Path] = Some(docPath)
   /** make the directory for our site */
@@ -25,6 +27,7 @@ trait PublishSite extends DefaultProject {
   def readmeFileName: Option[String] = None
 
   def indexTemplate = Source.fromInputStream(getClass.getResourceAsStream("/index.template")).mkString
+  lazy val markdownTemplate = Source.fromInputStream(getClass.getResourceAsStream("/markdown.template")).mkString
 
   // build an index.html if one doesn't already exist.
   def buildIndex(cfg: FreeConfig): Option[String] = {
@@ -43,13 +46,28 @@ trait PublishSite extends DefaultProject {
     None
   }
 
+  def buildMarkdownFiles(sourcePath: Path, destinationPath: Path): Option[String] = {
+    destinationPath.asFile.mkdirs()
+    ((sourcePath ##) ***).filter { f => !f.isDirectory && List("md", "markdown").contains(f.ext) }.get.foreach { path =>
+      val destString = Path.fromString(destinationPath, path.relativePath).absolutePath.toString
+      val dest = destString.substring(0, destString.size - path.ext.size) + "html"
+      val text = new MarkdownProcessor().markdown(Source.fromFile(path.absolutePath.toString).mkString)
+      println("--- GOT ONE: " + dest)
+
+      val writer = new BufferedWriter(new FileWriter(dest))
+      writer.write(markdownTemplate.replace("{{content}}", text))
+      writer.close()
+    }
+    None
+  }
+
+//
+ //     new File(dest.absolutePath.toString).getParentFile().mkdirs()
+  //    FileFilter.filter(path, dest, filters)
+
   def findReadme() = {
-    readmeFileName match {
-      case Some(s) => Some(s)
-      case None => {
-        val basePath = Path.fromFile(outputRootPath + File.separator + "..")
-        List(basePath / "README", basePath / "README.md").find(candidate => candidate.asFile.exists) map {_.toString}
-      }
+    readmeFileName orElse {
+      List("README", "README.md").find { _.asFile.exists }
     }
   }
 
@@ -70,6 +88,8 @@ trait PublishSite extends DefaultProject {
   def copySite() = {
     FileUtilities.clean(siteOutputPath, log) orElse
       FileUtilities.sync(sitePath, siteOutputPath, log) orElse
+      FileUtilities.sync(docsPath, siteOutputPath / "docs", log) orElse
+      buildMarkdownFiles(docsPath, siteOutputPath / "docs") orElse
       FileUtilities.createDirectory(siteOutputPath, log)
   }
 
