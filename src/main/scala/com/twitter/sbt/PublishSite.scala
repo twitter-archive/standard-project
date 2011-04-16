@@ -42,6 +42,8 @@ trait PublishSite extends DefaultProject {
       val template = cfg.getTemplate("index")
       template.process(model, writer)
       writer.close()
+    } else {
+      findReadme.foreach { f => copyMarkdownFile(f, (siteOutputPath / "readme.html").absolutePath.toString) }
     }
     None
   }
@@ -51,19 +53,17 @@ trait PublishSite extends DefaultProject {
     ((sourcePath ##) ***).filter { f => !f.isDirectory && List("md", "markdown").contains(f.ext) }.get.foreach { path =>
       val destString = Path.fromString(destinationPath, path.relativePath).absolutePath.toString
       val dest = destString.substring(0, destString.size - path.ext.size) + "html"
-      val text = new MarkdownProcessor().markdown(Source.fromFile(path.absolutePath.toString).mkString)
-      println("--- GOT ONE: " + dest)
-
-      val writer = new BufferedWriter(new FileWriter(dest))
-      writer.write(markdownTemplate.replace("{{content}}", text))
-      writer.close()
+      copyMarkdownFile(path.absolutePath.toString, dest)
     }
     None
   }
 
-//
- //     new File(dest.absolutePath.toString).getParentFile().mkdirs()
-  //    FileFilter.filter(path, dest, filters)
+  def copyMarkdownFile(source: String, destination: String) {
+    val text = new MarkdownProcessor().markdown(Source.fromFile(source).mkString)
+    val writer = new BufferedWriter(new FileWriter(destination))
+    writer.write(markdownTemplate.replace("{{content}}", text))
+    writer.close()
+  }
 
   def findReadme() = {
     readmeFileName orElse {
@@ -88,6 +88,7 @@ trait PublishSite extends DefaultProject {
   def copySite() = {
     FileUtilities.clean(siteOutputPath, log) orElse
       FileUtilities.sync(sitePath, siteOutputPath, log) orElse
+      buildMarkdownFiles(sitePath, siteOutputPath) orElse
       FileUtilities.sync(docsPath, siteOutputPath / "docs", log) orElse
       buildMarkdownFiles(docsPath, siteOutputPath / "docs") orElse
       FileUtilities.createDirectory(siteOutputPath, log)
