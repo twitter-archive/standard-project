@@ -4,7 +4,6 @@ import _root_.sbt._
 
 trait PublishThrift extends PublishSourcesAndJavadocs {
   def packageThriftJar = defaultJarPath("-thrift.jar")
-  override lazy val publish = super.publishAction dependsOn(packageDocs, packageSrc, packageThrift)
   lazy val thriftArtifact = Artifact(artifactID, "thrift", "jar", "thrift")
   def packageThriftAction = packageTask(mainSourcePath / "thrift" ##, packageThriftJar, Recursive) describedAs "package thrift jar"
   lazy val packageThrift = packageThriftAction
