@@ -100,7 +100,7 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers {
         prepareForReleaseTask &&
         publishReleaseTask &&
         finalizeReleaseTask &&
-        task { log.info("Don't forget to push the version change to origin") }
+        task { log.info("Don't forget to push the version change to origin"); None }
     }) describedAs PublishReleaseDescription
   }
 }

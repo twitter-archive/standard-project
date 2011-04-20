@@ -41,7 +41,24 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   } dependsOn(writeBuildProperties)
 
   // need to add mainResourcesOutputPath so the build.properties file can be found.
-  override def runAction = task { args => runTask(getMainClass(true), runClasspath +++ mainResourcesOutputPath, args) dependsOn(compile, writeBuildProperties) }
+  override def runAction = task { args =>
+    val classpath = runClasspath +++ mainResourcesOutputPath
+    runTask(getMainClass(true), classpath, args) dependsOn(compile, writeBuildProperties)
+  }
+
+  lazy val runClass = runClassAction
+
+  def runClassAction = task { args =>
+    if (args.isEmpty) {
+      task { Some("class name expected as argument") }
+    } else {
+      val mainClass = args(0)
+      val mainArgs = args.drop(1)
+      val classpath = runClasspath +++ mainResourcesOutputPath
+      runTask(Some(mainClass), classpath, mainArgs)
+        .dependsOn(compile, writeBuildProperties)
+    }
+  } describedAs("Run the main method of a specified class.")
 
   override def compileOrder = CompileOrder.JavaThenScala
 
