@@ -50,6 +50,7 @@ class WrappedDefaultProject(val underlying: DefaultProject)
   override def useMavenConfigurations          = underlying.useMavenConfigurations
   override def useDefaultConfigurations        = underlying.useDefaultConfigurations
 
+  override def mainSourceRoots = underlying.mainSourceRoots
 
 	override def updateModuleSettings  = underlying.updateModuleSettings
 	override def updateIvyModule			 = underlying.updateIvyModule
@@ -58,7 +59,11 @@ class WrappedDefaultProject(val underlying: DefaultProject)
 	override def publishModuleSettings = underlying.publishModuleSettings
 	override def publishIvyModule			 = underlying.publishIvyModule
 
-	// override protected def updateAction               = underlying.updateAction
+	override lazy val clean = task { underlying.clean.run }
+  
+  // override def cleanAction = underlying.cleanAction
+  
+  // override protected def updateAction               = underlying.updateAction
 	// override protected def cleanLibAction             = underlying.cleanLibAction
 	// override protected def cleanCacheAction           = underlying.cleanCacheAction
 	// override protected def deliverProjectDependencies = underlying.deliverProjectDependencies

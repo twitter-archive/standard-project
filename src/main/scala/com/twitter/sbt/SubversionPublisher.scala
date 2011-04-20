@@ -10,7 +10,7 @@ import _root_.sbt._
  */
 trait SubversionPublisher extends BasicManagedProject {
   private val prefs = new Properties()
-  private val prefsFilename = System.getProperty("user.home") + "/.svnrepo"
+  val prefsFilename = System.getProperty("user.home") + "/.svnrepo"
 
   // override me to publish to subversion.
   def subversionRepository: Option[String] = info.parent match {

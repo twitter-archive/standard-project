@@ -1,38 +1,48 @@
 package com.twitter.sbt
 
-import java.io.File
-import scala.collection.jcl
+import scala.collection.Set
 import _root_.sbt._
 
-trait DefaultRepos extends BasicManagedProject with Environmentalist {
-  val ibiblioRepository  = "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/"
-  val twitterRepository  = "twitter.com" at "http://maven.twttr.com/"
-  val powerMock          = "powermock-api" at "http://powermock.googlecode.com/svn/repo/"
-  val scalaToolsReleases = "scala-tools.org" at "http://scala-tools.org/repo-releases/"
-  val scalaToolsTesting  = "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/"
-  val oauthDotNet        = "oauth.net" at "http://oauth.googlecode.com/svn/code/maven"
-  val javaDotNet         = "download.java.net" at "http://download.java.net/maven/2/"
-  val atlassian          = "atlassian" at "https://m2proxy.atlassian.com/repository/public/"
+/*
+ * BasicManagedProject mixes in ReflectiveRepositories which defines "repositories" by
+ * reflectively collecting all vals that are of type Repository.
+ */
+trait DefaultRepos extends StandardManagedProject with Environmentalist {
+  override def repositories = {
+    val proxyRepo = environment.get("SBT_PROXY_REPO") match {
+      case None =>
+        if (environment.get("SBT_OPEN_TWITTER").isDefined) {
+          // backward compatibility: twitter's internal open source proxy
+          Some("http://artifactory.local.twitter.com/open-source/")
+        } else if (environment.get("SBT_TWITTER").isDefined) {
+          // backward compatibility: twitter's internal proxy
+          Some("http://artifactory.local.twitter.com/repo/")
+        } else {
+          None
+        }
+      case url =>
+        url
+    }
 
-  // for netty:
-  val jboss              = "jboss" at "http://repository.jboss.org/nexus/content/groups/public/"
+    val defaultRepos = List(
+      "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
+      "twitter.com" at "http://maven.twttr.com/",
+      "powermock-api" at "http://powermock.googlecode.com/svn/repo/",
+      "scala-tools.org" at "http://scala-tools.org/repo-releases/",
+      "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/",
+      "oauth.net" at "http://oauth.googlecode.com/svn/code/maven",
+      "download.java.net" at "http://download.java.net/maven/2/",
+      "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
 
-  val twitterPrivateRepo = if (environment.get("SBT_TWITTER").isDefined) {
-    new MavenRepository("twitter-private-m2", "http://binaries.local.twitter.com/maven/")
-  } else {
-    DefaultMavenRepository
-  }
+      // for netty:
+      "jboss" at "http://repository.jboss.org/nexus/content/groups/public/"
+    )
 
-  val twitterPrivateIvyRepo = if (environment.get("SBT_TWITTER").isDefined) {
-    val localURL = new java.net.URL("http://binaries.local.twitter.com/maven/")
-    val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
-    val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
-
-    val binariesIvyStyleRepo = Resolver.url("twitter internal old ivy-style paths",
-                                            localURL)(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false))
-
-    new MavenRepository("twitter-private-ivy", "http://binaries.local.twitter.com/maven/")
-  } else {
-    DefaultMavenRepository
+    proxyRepo match {
+      case Some(url) =>
+        localRepos + ("proxy-repo" at url)
+      case None =>
+        super.repositories ++ Set(defaultRepos: _*)
+    }
   }
 }

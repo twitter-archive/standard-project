@@ -1,0 +1,23 @@
+0.11.14
+-------
+release: 15 Apr 2011
+
+- build-site supports subprojects/parent projects
+
+0.11.13
+-------
+release: 14 apr 2011
+
+- Updated README to more thoroughly document all our base classes, traits, and general usage
+
+- Made StandardProjectPlugin extend from StandardProject to pull in all the niceness StandardProject provides
+
+0.11.12
+-------
+release: 14 apr 2011
+
+- don't automatically do "sbt idea" ever
+
+- don't try to generate API documentation for thrift-generated code
+
+- pretter generated site, and anything in site/ will now get copied over
