@@ -52,6 +52,7 @@ This extends SBT's DefaultProject, and mixes in the following traits
 * StandardManagedProject
 * DependencyChecking
 * PublishLocalWithMavenStyleBasePattern
+* PublishSourcesAndJavadocs
 * BuildProperties
 
 It sets up an optional ivy cache directory specified by the SBT_CACHE
