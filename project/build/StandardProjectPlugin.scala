@@ -12,7 +12,6 @@ with SubversionPublisher
 with IdeaProject
 with TartifactoryRepos
 with PublishSite
-with PublishSourcesAndJavadocs
 with ReleaseManagement {
   override def disableCrossPaths = true
 
