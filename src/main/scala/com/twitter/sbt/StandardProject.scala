@@ -20,6 +20,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   with StandardManagedProject
   with DependencyChecking
   with PublishLocalWithMavenStyleBasePattern
+  with PublishSourcesAndJavadocs
   with BuildProperties
 {
   override def dependencyPath = "libs"
@@ -127,9 +128,11 @@ class StandardParentProject(info: ProjectInfo) extends ParentProject(info)
  */
 class StandardLibraryProject(info: ProjectInfo) extends StandardProject(info)
   with PackageDist
+  with PublishSourcesAndJavadocs
 
 /**
  * A standard project type for building services.
  */
 class StandardServiceProject(info: ProjectInfo) extends StandardProject(info)
   with PackageDist
+  with PublishSourcesAndJavadocs
