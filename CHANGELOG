@@ -1,3 +1,16 @@
+0.11.16
+-------
+release: 20 Apr 2011
+
+- added a PublishThrift trait to publish everything in src/main/thrift
+	with a qualifier of -thrift
+
+0.11.14
+-------
+release: 15 Apr 2011
+
+- build-site supports subprojects/parent projects
+
 0.11.13
 -------
 release: 14 apr 2011
