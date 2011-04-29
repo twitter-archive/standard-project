@@ -505,7 +505,7 @@ trait ProjectDependencies extends BasicScalaProject with ParentProjectDependenci
     mainDependencies.scalaJars.get foreach { path => out.println(path.absolutePath) }
     out.close()
     None
-  }
+  } dependsOn(compile, copyResources)
 
   lazy val showCompileClasspath = task {
     compileClasspath.get foreach { path =>
