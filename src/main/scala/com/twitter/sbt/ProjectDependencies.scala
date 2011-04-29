@@ -502,6 +502,7 @@ trait ProjectDependencies extends BasicScalaProject with ParentProjectDependenci
     val file = new File(info.projectDirectory, ".run_classpath")
 		val out = new PrintWriter(new FileWriter(file))
     runClasspath.get foreach { path => out.println(path.absolutePath) }
+    mainDependencies.scalaJars.get foreach { path => out.println(path.absolutePath) }
     out.close()
     None
   }
