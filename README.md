@@ -15,18 +15,18 @@ example is
     import sbt._
 
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-        val twitterRepo = "twitter-repo" at "http://maven.twttr.com/"
-        val standardProject = "com.twitter" % "standard-project" % "0.11.36-NEST"
-     }
+      val twitterRepo = "twitter-repo" at "http://maven.twttr.com/"
+      val standardProject = "com.twitter" % "standard-project" % "0.11.14"
+    }
 
 ## Extending a StandardProject base
 
-In general most projects will extend either
-StandardServiceProject (if they are an application) or
-StandardLibraryProject (if they're a library). They will then
+In general a project will extend either
+`StandardServiceProject` (if it's are an application) or
+`StandardLibraryProject` (if it's a library). It will then
 
-* Specify their specific dependencies
-* Optionally specify their main class
+* Specify its specific dependencies
+* Optionally specify its main class
 
 A full project specification follows
 
@@ -34,11 +34,12 @@ A full project specification follows
     import com.twitter.sbt._
 
     class MyProject(info: ProjectInfo) extends StandardServiceProject(info) {
-      val util = "com.twitter" % "util" % "1.2.4"
-      override def mainClass = Some("com.twitter.MyClass")
+      val utilCore = "com.twitter" % "util-core" % "1.2.4"
+      override def mainClass = Some("com.example.awesome.MyClass")
     }
 
 # Reference
+
 ## Extensible Classes
 
 Instead of extending SBT's DefaultProject or DefaultParentProject,
@@ -53,21 +54,17 @@ This extends SBT's DefaultProject, and mixes in the following traits
 * DependencyChecking
 * PublishLocalWithMavenStyleBasePattern
 * BuildProperties
+* Ramdiskable
 
 It sets up an optional ivy cache directory specified by the SBT_CACHE
-environment variable, and sets up a resolver to point to "libs",
-allowing you to stick jars of the form [artifact]-[revision] in libs.
+environment variable, and sets up a resolver to point to `libs/`,
+allowing you to stick jars of the form `[artifact]-[revision].jar` in libs.
 
 The Scala/Java compile order is set to JavaThenScala, and some handy
 default compile options are set.
 
 The test action is overridden to allow disabling by setting the
 environment variable NO_TESTS to 1.
-
-Finally, it provides the capability to compile to a ramdisk instead of
-the regular "target" subdirectory. If the environment SBT\_RAMDISK\_ROOT
-is set, a target-ramdisk directory will be softlinked to
-SBT\_RAMDISK\_ROOT and will be used as the output path.
 
 ### StandardParentProject
 
@@ -117,26 +114,28 @@ It will be placed into your projects main package as defined in build.properties
 
 ### CorrectDependencies
 
-????
+Enforces stronger maven/ivy dependency checking, and whines if there are
+version incompatibilities in the dependency tree.
 
 ### DefaultRepos
 
 Sets up a standard set of repositories for your project. It uses the
 following environment variables
 
-* SBT\_PROXY\_REPO - if defined, use the given url as the _only_
-  resolver
-* SBT\_OPEN\_TWITTER - if defined, use Twitter's internal open-source
+* SBT\_PROXY\_REPO - If defined, use the given url as the _only_
+  resolver.
+* SBT\_OPEN\_TWITTER - If defined, use Twitter's internal open-source
   artifactory repo as the _only_ resolver. This is intended for use by
-  open source projects that can't pull from Twitter's private repo
-* SBT\_TWITTER - if defined, use Twitter's internal artifactory repo
+  open source projects that can't pull from Twitter's private repo.
+* SBT\_TWITTER - If defined, use Twitter's internal artifactory repo.
+  (deprecated)
 
 If none of these are set, it falls back to a list of "standard" repos.
 
 ### DependencyChecking
 
 Fails the build if your managed libraries directory doesn't exist
-(i.e. you haven't run sbt update)
+(i.e. you haven't run `sbt update`)
 
 ### EnsimeGenerator
 
@@ -218,6 +217,13 @@ Also adds a task to publish said site to a git repo.
 make publish and publish-local build/package/publish a -javadoc.jar
 and -sources.jar. Makes IDE users happy.
 
+### Ramdiskable
+
+Provides the capability to compile to a ramdisk instead of the regular
+"target" subdirectory. If the environment `SBT\_RAMDISK\_ROOT` is set, a
+target-ramdisk directory will be softlinked to `SBT\_RAMDISK\_ROOT` and
+will be used as the output path.
+
 ### ReleaseManagement
 
 A helper for bumping versions and publishing artifacts. If you're
@@ -231,7 +237,7 @@ Support for getting git shas into currentRevision
 
 ### StandardManagedProject
 
-Mixes in 
+Mixes in
 
 * SourceControlledProject
 * ReleaseManagement
