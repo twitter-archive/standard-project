@@ -10,11 +10,25 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
   // workaround bug in sbt that hides scala-compiler.
   override def filterScalaJars = false
 
+  private[this] def paths(f: BasicScalaProject => PathFinder) =
+    Path.lazyPathFinder {
+      topologicalSort flatMap {
+        case sp: BasicScalaProject => f(sp).get
+        case _ => Nil
+      }
+    }
+
   // build the executable jar's classpath.
   // (why is it necessary to explicitly remove the target/{classes,resources} paths? hm.)
   def dependentJars = {
-    val jars =
-      publicClasspath +++ mainDependencies.scalaJars --- mainCompilePath --- mainResourcesOutputPath
+    val jars = (
+          jarsOfProjectDependencies
+      +++ runClasspath
+      +++ mainDependencies.scalaJars
+      --- paths(_.mainCompilePath)
+      --- paths(_.mainResourcesOutputPath)
+    )
+ 
     if (jars.get.find { jar => jar.name.startsWith("scala-library-") }.isDefined) {
       // workaround bug in sbt: if the compiler is explicitly included, don't include 2 versions
       // of the library.
@@ -25,6 +39,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
       jars
     }
   }
+
   def dependentJarNames = dependentJars.getFiles.map(_.getName).filter(_.endsWith(".jar"))
   override def manifestClassPath = Some(dependentJarNames.map { "libs/" + _ }.mkString(" "))
 
@@ -72,7 +87,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
    * - config files
    * - scripts
    */
-  def packageDistTask = task {
+  def packageDistTask = interactiveTask {
     distPath.asFile.mkdirs()
     (distPath / "libs").asFile.mkdirs()
     configOutputPath.asFile.mkdirs()

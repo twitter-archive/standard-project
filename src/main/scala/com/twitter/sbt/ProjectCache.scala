@@ -11,35 +11,24 @@ import _root_.sbt._
 trait ProjectCache extends BasicManagedProject {
   private[this] var _projectCacheStore: HashMap[String, Project] = null
 
-  def projectCacheStore: HashMap[String, Project] = {
-    if (_projectCacheStore eq null)
-      _projectCacheStore = new HashMap[String, Project]
+  def projectCacheStore: HashMap[String, Project] =
+    info.parent match {
+      case None =>
+        if (_projectCacheStore == null)
+          _projectCacheStore = new HashMap[String, Project]
+        _projectCacheStore
 
-    _projectCacheStore
-  }
-
-  protected def setProjectCacheStoreInProject(
-    p: Project, store: HashMap[String, Project]
-  ) = {
-    val m = p.getClass.getDeclaredMethod(
-      "setProjectCacheStore", classOf[HashMap[String, Project]])
-    if (m ne null) {
-			m.invoke(p, store)
-		} else {
-      log.error("project %s is not a ProjectCache project".format(p.name))
-      System.exit(1)
+      case Some(parent) =>
+        val m = try {
+          parent.getClass.getMethod("projectCacheStore")
+        } catch {
+          case e: NoSuchMethodException =>
+            log.error("Parent project is invalid!")
+            throw e
+        }
+         
+        m.invoke(parent).asInstanceOf[HashMap[String, Project]]
     }
-  }
-
-  def setProjectCacheStore(store: HashMap[String, Project]) {
-    // // Compute overlap?
-    // projectCacheStore foreach { case (k, v) => store(k) = v }
-    _projectCacheStore = store
-
-    subProjects foreach { case (_, p) =>
-			setProjectCacheStoreInProject(p, store)
-    }
-  }
 
   protected def projectCache(key: String)(make: => Option[Project]) = {
     projectCacheStore.get(key) match {

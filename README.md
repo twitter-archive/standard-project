@@ -53,6 +53,7 @@ This extends SBT's DefaultProject, and mixes in the following traits
 * StandardManagedProject
 * DependencyChecking
 * PublishLocalWithMavenStyleBasePattern
+* PublishSourcesAndJavadocs
 * BuildProperties
 * Ramdiskable
 
