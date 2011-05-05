@@ -11,10 +11,12 @@ import scala.io._
 trait BuildSite extends MavenStyleScalaPaths {
   /** where a pre-generated web site might exist */
   def sitePath: Path = "site"
+  /** where pre-generated docs might exist */
+  def docsPath: Path = "docs"
   /** where we'll stick our generated web site */
   def siteOutputPath = outputRootPath / "site"
   /** where scaladocs end up */
-  def docOutputPath = siteOutputPath / "doc"
+  def docOutputPath = siteOutputPath / "api"
   /** where our generated doc goes */
   def scalaDocDir: Option[Path] = Some(docPath)
   /** make the directory for our site */
@@ -28,6 +30,7 @@ trait BuildSite extends MavenStyleScalaPaths {
   val buildSite: Task
 
   def indexTemplate = Source.fromInputStream(getClass.getResourceAsStream("/index.template")).mkString
+  lazy val markdownTemplate = Source.fromInputStream(getClass.getResourceAsStream("/markdown.template")).mkString
 
   // build an index.html if one doesn't already exist.
   def buildIndex(cfg: FreeConfig): Option[String] = {
@@ -39,6 +42,8 @@ trait BuildSite extends MavenStyleScalaPaths {
       val template = cfg.getTemplate("index")
       template.process(model, writer)
       writer.close()
+    } else {
+      findReadme.foreach { f => copyMarkdownFile(f, (siteOutputPath / "readme.html").absolutePath.toString) }
     }
     None
   }
@@ -51,13 +56,26 @@ trait BuildSite extends MavenStyleScalaPaths {
     model
   }
 
+  def buildMarkdownFiles(sourcePath: Path, destinationPath: Path): Option[String] = {
+    destinationPath.asFile.mkdirs()
+    ((sourcePath ##) ***).filter { f => !f.isDirectory && List("md", "markdown").contains(f.ext) }.get.foreach { path =>
+      val destString = Path.fromString(destinationPath, path.relativePath).absolutePath.toString
+      val dest = destString.substring(0, destString.size - path.ext.size) + "html"
+      copyMarkdownFile(path.absolutePath.toString, dest)
+    }
+    None
+  }
+
+  def copyMarkdownFile(source: String, destination: String) {
+    val text = new MarkdownProcessor().markdown(Source.fromFile(source).mkString)
+    val writer = new BufferedWriter(new FileWriter(destination))
+    writer.write(markdownTemplate.replace("{{content}}", text))
+    writer.close()
+  }
+
   def findReadme() = {
-    readmeFileName match {
-      case Some(s) => Some(s)
-      case None => {
-        val basePath = Path.fromFile(outputRootPath + File.separator + "..")
-        List(basePath / "README", basePath / "README.md").find(candidate => candidate.asFile.exists) map {_.toString}
-      }
+    readmeFileName orElse {
+      List("README", "README.md").find { _.asFile.exists }
     }
   }
 
@@ -78,6 +96,9 @@ trait BuildSite extends MavenStyleScalaPaths {
   def copySite() = {
     FileUtilities.clean(siteOutputPath, log) orElse
       FileUtilities.sync(sitePath, siteOutputPath, log) orElse
+      buildMarkdownFiles(sitePath, siteOutputPath) orElse
+      FileUtilities.sync(docsPath, siteOutputPath / "docs", log) orElse
+      buildMarkdownFiles(docsPath, siteOutputPath / "docs") orElse
       FileUtilities.createDirectory(siteOutputPath, log)
   }
 
