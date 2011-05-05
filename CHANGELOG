@@ -1,3 +1,15 @@
+0.12.3
+------
+release: 5 May 2011
+
+- Source and javadocs are published by default now.
+
+- Fixed the run classpath to include scala jars.
+
+- Files in `doc/` will be copied over into the generated site. Any markdown files found in either
+  `doc/` or `site/` will be compiled into HTML.
+
+
 0.11.16
 -------
 release: 20 Apr 2011
