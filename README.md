@@ -16,7 +16,7 @@ example is
 
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
       val twitterRepo = "twitter-repo" at "http://maven.twttr.com/"
-      val standardProject = "com.twitter" % "standard-project" % "0.11.14"
+      val standardProject = "com.twitter" % "standard-project" % "0.11.16"
     }
 
 ## Extending a StandardProject base
