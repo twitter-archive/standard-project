@@ -1,6 +1,5 @@
 <html>
 <head>
-<title>${projectName}</title>
 <style type="text/css">
 
 body {
@@ -76,25 +75,8 @@ pre code {
 </head>
 
 <body>
-<h1> ${projectName} </h1>
 
-<ul>
-<#if readme??>
-<li> <a href="#_readme">README</a> </li>
-</#if>
-<#if scaladoc??>
-<li> <a href="api/main/api/index.html">Scala API documentation</a> </li>
-</#if>
-</ul>
-
-<p/>
-<hr/>
-<p/>
-
-<#if readme??>
-<a name="_readme"></a>
-${readme}
-</#if>
+{{content}}
 
 </body>
 </html>
