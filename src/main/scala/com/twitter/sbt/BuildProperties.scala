@@ -21,6 +21,9 @@ trait BuildProperties extends DefaultProject with SourceControlledProject {
     buildProperties.setProperty("version", version.toString)
     buildProperties.setProperty("build_name", timestamp)
     currentRevision.foreach(buildProperties.setProperty("build_revision", _))
+    branchName.foreach(buildProperties.setProperty("build_branch_name", _))
+    lastFewCommits.foreach(buildProperties.setProperty("build_last_few_commits", _))
+
     val fileWriter = new FileWriter(buildPropertiesPath.asFile)
     buildProperties.store(fileWriter, "")
     fileWriter.close()
