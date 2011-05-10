@@ -32,54 +32,5 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory {
   }
 }
 
-trait TartifactoryRepos extends BasicManagedProject with Tartifactory {
-  private val tartEnv = jcl.Map(System.getenv())
-  def handleIvyArtifactsInArtifactory = false
-
-  val ivyXmlPatterns = List("[organization]/[module]/[revision]/ivy-[revision].xml")
-  val ivyArtifactPatterns = List("[organization]/[module]/[revision]/[artifact]-[revision].[ext]")
-
-  def artifactoryRepos = if (handleIvyArtifactsInArtifactory) {
-    List(Resolver.url("artifactory.remote.ivy", new java.net.URL(artifactoryRoot + "/" + proxyRepo))(Patterns(ivyXmlPatterns, ivyArtifactPatterns, false)),
-    "artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
-  } else {
-    List("artifactory.remote" at (artifactoryRoot + "/" + proxyRepo))
-  }
-
-  def externalRepos = List(
-    "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
-    "twitter.com" at "http://maven.twttr.com/",
-    "powermock-api" at "http://powermock.googlecode.com/svn/repo/",
-    "scala-tools.org" at "http://scala-tools.org/repo-releases/",
-    "testing.scala-tools.org" at "http://scala-tools.org/repo-releases/testing/",
-    "oauth.net" at "http://oauth.googlecode.com/svn/code/maven",
-    "download.java.net" at "http://download.java.net/maven/2/",
-    "atlassian" at "https://m2proxy.atlassian.com/repository/public/",
-    "jboss" at "http://repository.jboss.org/nexus/content/groups/public/")
-
-  /**
-   * Override this if you need to disable artifactory.
-   */
-  def useArtifactory = tartEnv.get("SBT_TWITTER").isDefined
-
-  override def repositories = {
-    val projectRepos = if (useArtifactory) {
-      artifactoryRepos
-    } else {
-      externalRepos ++ super.repositories
-    }
-    Set(projectRepos: _*)
-  }
-
-  override def ivyRepositories = {
-    if (useArtifactory) {
-      Seq(Resolver.defaultLocal(None)) ++ repositories.toList
-    } else {
-      super.ivyRepositories
-    }
-  }
-}
-
-trait OpensourceRepos extends TartifactoryRepos {
-  override def proxyRepo = "open-source"
-}
+@deprecated("just use DefaultRepos")
+trait TartifactoryRepos extends DefaultRepos
