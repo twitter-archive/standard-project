@@ -32,5 +32,5 @@ trait TartifactoryPublisher extends BasicManagedProject with Tartifactory {
   }
 }
 
-@deprecated("just use DefaultRepos")
+@deprecated //("just use DefaultRepos")
 trait TartifactoryRepos extends DefaultRepos
