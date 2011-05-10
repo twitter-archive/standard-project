@@ -88,7 +88,7 @@ class StandardProject(info: ProjectInfo) extends DefaultProject(info)
   val ensimeBlacklist: List[String] = Nil
 
   /**
-   * Generates a .ensime file for the project and it's dependencies.
+   * Generates a .ensime file for the project and its dependencies.
    */
   lazy val generateEnsime = task { _ => interactiveTask {
     val file = new java.io.File(info.projectDirectory, ".ensime")
