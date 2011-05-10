@@ -1,8 +1,27 @@
-0.12.4
+0.12.5
 ------
 release: 10 May 2011
 
 - added a generate-ensime task to StandardProject which will generate a .ensime file for your project.
+
+0.12.4
+------
+release: 9 May 2011
+
+- Added branch name and last few commit summaries to `build.properties`.
+
+0.12.3
+------
+release: 5 May 2011
+
+- Source and javadocs are published by default now.
+
+- Fixed the run classpath to include scala jars.
+
+- Files in `doc/` will be copied over into the generated site. Any markdown files found in either
+  `doc/` or `site/` will be compiled into HTML.
+
+>>>>>>> master
 
 0.11.16
 -------
@@ -11,11 +30,13 @@ release: 20 Apr 2011
 - added a PublishThrift trait to publish everything in src/main/thrift
 	with a qualifier of -thrift
 
+
 0.11.14
 -------
 release: 15 Apr 2011
 
 - build-site supports subprojects/parent projects
+
 
 0.11.13
 -------
@@ -24,6 +45,7 @@ release: 14 apr 2011
 - Updated README to more thoroughly document all our base classes, traits, and general usage
 
 - Made StandardProjectPlugin extend from StandardProject to pull in all the niceness StandardProject provides
+
 
 0.11.12
 -------
