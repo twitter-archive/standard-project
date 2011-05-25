@@ -8,22 +8,22 @@ import _root_.sbt._
  * reflectively collecting all vals that are of type Repository.
  */
 trait DefaultRepos extends StandardManagedProject with Environmentalist {
-  override def repositories = {
-    val proxyRepo = environment.get("SBT_PROXY_REPO") match {
-      case None =>
-        if (environment.get("SBT_OPEN_TWITTER").isDefined) {
-          // backward compatibility: twitter's internal open source proxy
-          Some("http://artifactory.local.twitter.com/open-source/")
-        } else if (environment.get("SBT_TWITTER").isDefined) {
-          // backward compatibility: twitter's internal proxy
-          Some("http://artifactory.local.twitter.com/repo/")
-        } else {
-          None
-        }
-      case url =>
-        url
-    }
+  val proxyRepo = environment.get("SBT_PROXY_REPO") match {
+    case None =>
+      if (environment.get("SBT_OPEN_TWITTER").isDefined) {
+        // backward compatibility: twitter's internal open source proxy
+        Some("http://artifactory.local.twitter.com/open-source/")
+      } else if (environment.get("SBT_TWITTER").isDefined) {
+        // backward compatibility: twitter's internal proxy
+        Some("http://artifactory.local.twitter.com/repo/")
+      } else {
+        None
+      }
+    case url =>
+      url
+  }
 
+  override def repositories = {
     val defaultRepos = List(
       "ibiblio" at "http://mirrors.ibiblio.org/pub/mirrors/maven2/",
       "twitter.com" at "http://maven.twttr.com/",
@@ -43,6 +43,15 @@ trait DefaultRepos extends StandardManagedProject with Environmentalist {
         localRepos + ("proxy-repo" at url)
       case None =>
         super.repositories ++ Set(defaultRepos: _*)
+    }
+  }
+
+  override def ivyRepositories = {
+    proxyRepo match {
+      case Some(url) =>
+        Seq(Resolver.defaultLocal(None)) ++ repositories.toList
+      case None =>
+        super.ivyRepositories
     }
   }
 }
