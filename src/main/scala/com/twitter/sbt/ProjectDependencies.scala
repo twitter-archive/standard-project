@@ -66,7 +66,6 @@ trait ParentProjectDependencies
   def useProjectDependencies =
     _useProjectDependencies getOrElse {
       !environment.get("NO_PROJECT_DEPS").isDefined &&
-      (System.getProperty("NO_PROJECT_DEPS") eq null) &&
       projectDependenciesFilePresent
     }
 
