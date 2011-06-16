@@ -83,6 +83,7 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers {
     } else {
       "sbt +publish"
     }
+    // set NO_PROJECT_DEPS so the nested publish doesn't depend on transient versions.
     val exitCode = Process(cmd, None, ("NO_PROJECT_DEPS", "1")).run().exitValue()
     if (exitCode == 0) {
       None
