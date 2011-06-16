@@ -61,7 +61,7 @@ trait ParentProjectDependencies
   private var _useProjectDependencies: Option[Boolean] = None
   private lazy val projectDependenciesFilePresent =
     Seq(Path.fromFile(ProjectDependenciesFile),
-        Path.fromFile("..") / ProjectDependenciesFile).exists { _.exists }    
+        Path.fromFile("..") / ProjectDependenciesFile).exists { _.exists }
 
   def useProjectDependencies =
     _useProjectDependencies getOrElse {
@@ -118,7 +118,7 @@ trait ParentProjectDependencies
         projectPath flatMap { projectPath =>
           val parentProject =
             projectCache("path:%s".format(projectPath)) { Some(project(projectPath)) }
-          parentProject flatMap { parentProject => 
+          parentProject flatMap { parentProject =>
             if (parentProject.name != name) {
               // Try to find it in a subproject.
               parentProject.subProjects.find { _._2.name == name } map { _._2 }
@@ -443,7 +443,7 @@ trait ParentProjectDependencies
 
     None
   }
-  
+
   lazy val showManagedClasspath = task { args =>
     val name = args match {
       case Array(configName) => configName

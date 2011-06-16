@@ -4,6 +4,7 @@ import java.util.Properties
 import java.io.{FileOutputStream, FileInputStream}
 
 import _root_.sbt.{BasicManagedProject, BasicDependencyProject, Version}
+import _root_.sbt.Process
 import _root_.sbt.Process._
 import pimpedversion._
 
@@ -82,9 +83,13 @@ trait ReleaseManagement extends BasicManagedProject with GitHelpers {
     } else {
       "sbt +publish"
     }
-    val exitCode = (cmd !)
-    if (exitCode == 0) None
-    else Some(cmd + " exit code " + exitCode)
+    // set NO_PROJECT_DEPS so the nested publish doesn't depend on transient versions.
+    val exitCode = Process(cmd, None, ("NO_PROJECT_DEPS", "1")).run().exitValue()
+    if (exitCode == 0) {
+      None
+    } else {
+      Some(cmd + " exit code " + exitCode)
+    }
   }
 
   val PublishReleaseDescription = "Publish a release to maven. commits and tags version in git."
