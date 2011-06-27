@@ -1,12 +1,9 @@
-import java.io.{File, FileReader, FileWriter}
-import java.util.{Date, Properties}
+import java.io.{File, FileWriter}
 import java.text.SimpleDateFormat
-import fm.last.ivy.plugins.svnresolver.SvnResolver
-import scala.collection.jcl
+import java.util.Date
 import com.twitter.sbt._
 import _root_.sbt._
 
-// TODO: somehow link on the real SubversionPublisher in the main source tree
 class StandardProjectPlugin(info: ProjectInfo) extends PluginProject(info)
 with SubversionPublisher
 with IdeaProject
