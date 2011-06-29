@@ -60,13 +60,15 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
   // copy scripts.
   val CopyScriptsDescription = "Copies scripts into the dist folder."
   val copyScripts = task {
+    val rev = currentRevision.getOrElse("")
     val filters = Map(
       "CLASSPATH" -> (publicClasspath +++ mainDependencies.scalaJars).getPaths.mkString(":"),
       "TEST_CLASSPATH" -> testClasspath.getPaths.mkString(":"),
       "DIST_CLASSPATH" -> (dependentJarNames.map { "${DIST_HOME}/libs/" + _ }.mkString(":") +
         ":${DIST_HOME}/" + defaultJarName),
       "DIST_NAME" -> name,
-      "VERSION" -> version.toString
+      "VERSION" -> version.toString,
+      "REVISION" -> rev
     )
 
     scriptsOutputPath.asFile.mkdirs()
