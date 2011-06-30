@@ -89,7 +89,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
    * - config files
    * - scripts
    */
-  def packageDistTask = interactiveTask {
+  def packageDistTask = task {
     distPath.asFile.mkdirs()
     (distPath / "libs").asFile.mkdirs()
     configOutputPath.asFile.mkdirs()
