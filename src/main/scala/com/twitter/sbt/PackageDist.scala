@@ -3,7 +3,7 @@ package com.twitter.sbt
 import _root_.sbt._
 import java.io.File
 
-trait PackageDist extends DefaultProject with SourceControlledProject {
+trait PackageDist extends DefaultProject with SourceControlledProject with Environmentalist {
   // override me for releases!
   def releaseBuild = false
 
@@ -28,7 +28,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
       --- paths(_.mainCompilePath)
       --- paths(_.mainResourcesOutputPath)
     )
- 
+
     if (jars.get.find { jar => jar.name.startsWith("scala-library-") }.isDefined) {
       // workaround bug in sbt: if the compiler is explicitly included, don't include 2 versions
       // of the library.
@@ -81,6 +81,25 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
     None
   } named("copy-scripts") dependsOn(`compile`) describedAs CopyScriptsDescription
 
+  // run --validate on any scala files found in config/
+  def validateConfigFilesTask = task {
+    if (environment.get("NO_VALIDATE").isDefined) {
+      None
+    } else {
+      val distJar = (distPath / (jarPath.name)).absolutePath
+      (configPath ** "*.scala").filter { !_.isDirectory }.get.map { path =>
+        val cmd = Array("java", "-jar", distJar, "-f", path.absolutePath, "--validate")
+        val exitCode = Process(cmd).run().exitValue()
+        if (exitCode == 0) {
+          None
+        } else {
+          Some("Failed to validate " + path.toString)
+        }
+      }.reduceLeft { _ orElse _ }
+    }
+  } describedAs("Validate any config files.")
+  lazy val validateConfigFiles = validateConfigFilesTask
+
   /**
    * copy into dist:
    * - packaged jar
@@ -102,7 +121,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject {
   }
 
   val PackageDistDescription = "Creates a deployable zip file with dependencies, config, and scripts."
-  lazy val packageDist = packageDistTask dependsOn(`package`, makePom, copyScripts) describedAs PackageDistDescription
+  lazy val packageDist = packageDistTask.dependsOn(`package`, makePom, copyScripts).describedAs(PackageDistDescription) && validateConfigFilesTask
 
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanDist)
