@@ -1,3 +1,6 @@
+
+- added a phase to validate config files during packaging
+
 0.12.7
 ------
 release: 24 may 2011
