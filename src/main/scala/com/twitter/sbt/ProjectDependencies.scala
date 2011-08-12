@@ -237,33 +237,31 @@ trait ParentProjectDependencies
     }
   }
 
-	override def fullClasspath(config: Configuration): PathFinder =
-		if (!useProjectDependencies) {
+  override def fullClasspath(config: Configuration): PathFinder =
+    if (!useProjectDependencies) {
       super.fullClasspath(config)
     } else {
       Path.lazyPathFinder {
         val set = new HashSet[Path]
-		    for (project <- topologicalSort) {
+        for (project <- topologicalSort) {
           val method = project.getClass.getMethod(
-						"filteredProjectClasspath",
+            "filteredProjectClasspath", 
             classOf[Configuration], classOf[List[Project]])
-
-					val queryConfig =
-            if (config == Configurations.Test &&
-                (project ne this) && info.dependencies.forall(_ ne project)) {
-              Configurations.Runtime
+           
+          val queryConfig =
+            if (config == Configurations.Test && 
+               (project ne this) && info.dependencies.forall(_ ne project)) {
+             Configurations.Runtime
             } else {
               config
             }
-
-          val projectClasspath =
-						method.invoke(project, queryConfig, projectClosure).asInstanceOf[PathFinder]
-
-					set ++= projectClasspath.get
-		    }
-
-		    set.toList
-		  }
+  
+          val projectClasspath = 
+            method.invoke(project, queryConfig, projectClosure).asInstanceOf[PathFinder]
+          set ++= projectClasspath.get
+        }
+        set.toList
+      }
     }
 
   /**
@@ -310,18 +308,18 @@ trait ParentProjectDependencies
     val projects = _projectDependencies flatMap { dep => dep.resolveProject map { (_, dep) } }
     projects foreach { case (p, dep) =>
       val m = p.getClass.getMethod("lastReleasedVersion")
-			val version = if (m ne null) {
-				m.invoke(p).asInstanceOf[Option[Version]]
-			} else {
-				log.error("project %s is not a ReleaseManagement project".format(p.name))
-				None
-			}
+      val version = if (m ne null) {
+        m.invoke(p).asInstanceOf[Option[Version]]
+      } else {
+        log.error("project %s is not a ReleaseManagement project".format(p.name))
+        None
+      }
 
       version foreach { version =>
-				val key = "%s/%s".format(p.organization, p.name)
+        val key = "%s/%s".format(p.organization, p.name)
         prop.setProperty("%s|%s".format(dep.relPath, dep.name), key)
         prop.setProperty(key, version.toString)
-			}
+      }
     }
 
     if (signature(prop) != oldSignature) {
@@ -465,7 +463,7 @@ trait ParentProjectDependencies
   //   super.managedClasspath(config)
   // }
 
-	lazy val showMe = task {
+  lazy val showMe = task {
     println(defaultConfigurationExtensions)
     None
   }
@@ -500,7 +498,7 @@ trait ParentProjectDependencies
 trait ProjectDependencies extends BasicScalaProject with ParentProjectDependencies {
   lazy val generateRunClasspath = task {
     val file = new File(info.projectDirectory, ".run_classpath")
-		val out = new PrintWriter(new FileWriter(file))
+    val out = new PrintWriter(new FileWriter(file))
     runClasspath.get foreach { path => out.println(path.absolutePath) }
     mainDependencies.scalaJars.get foreach { path => out.println(path.absolutePath) }
     out.close()
@@ -517,29 +515,29 @@ trait ProjectDependencies extends BasicScalaProject with ParentProjectDependenci
 
   lazy val showOptionalClasspath = task {
     optionalClasspath.get foreach { path =>
-			println("> %s".format(path))
-		}
+      println("> %s".format(path))
+    }
     None
   }
 
   lazy val showProvidedClasspath = task {
     providedClasspath.get foreach { path =>
-			println("> %s".format(path))
-		}
+      println("> %s".format(path))
+    }
     None
   }
 
   lazy val showTestClasspath = task {
     testClasspath.get foreach { path =>
-			println("> %s".format(path.absolutePath))
-		}
+      println("> %s".format(path.absolutePath))
+    }
     None
   }
 
   lazy val showRunClasspath = task {
     runClasspath.get foreach { path =>
-			println("> %s".format(path.absolutePath))
-		}
+      println("> %s".format(path.absolutePath))
+    }
     None
   }
 
