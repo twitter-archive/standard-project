@@ -335,6 +335,7 @@ trait ParentProjectDependencies
   lazy val testProject = task { args =>
     task {
       projectSubProjects foreach { _.call("test-only", args) }
+      subProjectParent.call("test-only", args)
       None
     }
   }
