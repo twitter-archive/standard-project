@@ -1,4 +1,6 @@
+0.12.10
 
+- test-project tests relevant parent projects, and ensures the project is actually testable
 - added a phase to validate config files during packaging
 
 0.12.7
