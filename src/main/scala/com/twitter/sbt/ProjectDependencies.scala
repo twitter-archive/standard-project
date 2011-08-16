@@ -334,9 +334,12 @@ trait ParentProjectDependencies
 
   lazy val testProject = task { args =>
     task {
-      projectSubProjects foreach { _.call("test-only", args) }
-      subProjectParent.call("test-only", args)
-      None
+      val allProjects = projectSubProjects ++ Seq(subProjectParent)
+      val testableProjects = allProjects filter { _.methods contains "test-only" }
+      val errors = testableProjects map { _.call("test-only", args) }
+      // report only the first error.
+      val error = errors find { _.isDefined }
+      error flatMap { x => x }  // using "identity" here fails type inference :-/
     }
   }
 
