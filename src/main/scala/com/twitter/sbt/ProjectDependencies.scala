@@ -341,7 +341,10 @@ trait ParentProjectDependencies
       val error = errors find { _.isDefined }
       error flatMap { x => x }  // using "identity" here fails type inference :-/
     }
-  }
+  } describedAs(
+    "Run tests for the current project. " + 
+    "Analagous to running tests in a project " +
+    "without project dependencies.")
 
   /**
    * Utilities / debugging.
