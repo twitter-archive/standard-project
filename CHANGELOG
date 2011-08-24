@@ -1,4 +1,11 @@
+0.12.11
+-------
+release: 24 Aug 2011
+
+- fix bug in PublishLocalWithMavenStyleBasePattern
+
 0.12.10
+-------
 
 - test-project tests relevant parent projects, and ensures the project is actually testable
 - added a phase to validate config files during packaging

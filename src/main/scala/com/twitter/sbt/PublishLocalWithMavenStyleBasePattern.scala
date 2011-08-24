@@ -13,7 +13,7 @@ trait PublishLocalWithMavenStyleBasePattern extends StandardManagedProject {
   def usesMavenStyleBasePatternInPublishLocalConfiguration: Boolean = info.parent match {
     case Some(parent: PublishLocalWithMavenStyleBasePattern) =>
       parent.usesMavenStyleBasePatternInPublishLocalConfiguration
-    case None =>
+    case _ =>
       true
   }
 
