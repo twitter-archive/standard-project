@@ -197,7 +197,7 @@ trait ParentProjectDependencies
         Set() ++ missingProjectDependencies flatMap { _.resolveModuleID }
       }
     } else {
-      (Set() ++ _projectDependencies map { _.resolveModuleID.get }) ++ super.libraryDependencies
+      (Set() ++ _projectDependencies flatMap { _.resolveModuleID }) ++ super.libraryDependencies
     }
 
   /**

@@ -1,3 +1,9 @@
+0.12.12
+-------
+release: 24 Aug 2011
+
+- fix bug in ProjectDependencies
+
 0.12.11
 -------
 release: 24 Aug 2011
