@@ -82,8 +82,9 @@ trait PackageDist extends DefaultProject with SourceControlledProject with Envir
   } named("copy-scripts") dependsOn(`compile`) describedAs CopyScriptsDescription
 
   // run --validate on any scala files found in config/
+  def validateConfig = false
   def validateConfigFilesTask = task {
-    if (environment.get("NO_VALIDATE").isDefined) {
+    if (environment.get("NO_VALIDATE").isDefined || !validateConfig) {
       None
     } else {
       val distJar = (distPath / (jarPath.name)).absolutePath
@@ -126,3 +127,4 @@ trait PackageDist extends DefaultProject with SourceControlledProject with Envir
   val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
   override def cleanAction = super.cleanAction dependsOn(cleanDist)
 }
+
