@@ -1,6 +1,7 @@
 package com.twitter.sbt
 
 import _root_.sbt._
+import scala.collection.Set
 import java.io.File
 
 trait PackageDist extends DefaultProject with SourceControlledProject with Environmentalist {
@@ -81,14 +82,19 @@ trait PackageDist extends DefaultProject with SourceControlledProject with Envir
     None
   } named("copy-scripts") dependsOn(`compile`) describedAs CopyScriptsDescription
 
-  // run --validate on any scala files found in config/
-  def validateConfig = false
+  val allConfigFiles: Set[Path] = (configPath ** "*.scala").filter { !_.isDirectory }.get
+
+  // the set of config files to validate during package-dist.
+  // to validate everything in config/, set validateConfigFilesSet = allConfigFiles.
+  def validateConfigFilesSet: Set[Path] = Set()
+
+  // run --validate on requested config files to make sure they compile.
   def validateConfigFilesTask = task {
-    if (environment.get("NO_VALIDATE").isDefined || !validateConfig) {
+    if (environment.get("NO_VALIDATE").isDefined) {
       None
     } else {
       val distJar = (distPath / (jarPath.name)).absolutePath
-      (configPath ** "*.scala").filter { !_.isDirectory }.get.map { path =>
+      validateConfigFilesSet.map { path =>
         val cmd = Array("java", "-jar", distJar, "-f", path.absolutePath, "--validate")
         val exitCode = Process(cmd).run().exitValue()
         if (exitCode == 0) {
