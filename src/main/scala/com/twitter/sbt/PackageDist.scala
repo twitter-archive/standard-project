@@ -102,7 +102,7 @@ trait PackageDist extends DefaultProject with SourceControlledProject with Envir
         } else {
           Some("Failed to validate " + path.toString)
         }
-      }.reduceLeft { _ orElse _ }
+      }.foldLeft[Option[String]](None) { _ orElse _ }
     }
   } describedAs("Validate any config files.")
   lazy val validateConfigFiles = validateConfigFilesTask
