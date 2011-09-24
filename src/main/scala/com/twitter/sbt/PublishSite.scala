@@ -25,6 +25,8 @@ trait BuildSite extends MavenStyleScalaPaths {
   def isReadmeMarkdown = true
   /** the filename of our readme */
   def readmeFileName: Option[String] = None
+  /** for github publishing: which remote to publish to */
+  def githubRemote: String = "origin"
 
   /** overridden */
   val buildSite: Task
@@ -176,7 +178,7 @@ trait BuildSite extends MavenStyleScalaPaths {
     if (ghPagesSetup == "") {
       Some("gh-pages branch is not present, not publishing")
     } else {
-      val remoteRepo: String = ("git config --get remote.origin.url" !!).trim
+      val remoteRepo: String = ("git config --get remote." + githubRemote + ".url" !!).trim
       val tmpdir = System.getProperty("java.io.tmpdir") match {
         case null => "/tmp"
         case t => t
@@ -198,7 +200,7 @@ trait BuildSite extends MavenStyleScalaPaths {
         val copySite = new java.lang.ProcessBuilder("cp",  "-r",  siteFullPath + File.separator, ".") directory new File(tmpLoc)
         val gitAdd = new java.lang.ProcessBuilder("git", "add", ".") directory new File(tmpLoc)
         val gitCommit = new java.lang.ProcessBuilder("git", "commit", "--allow-empty", "-m", "site update") directory new File(tmpLoc)
-        val gitPush = new java.lang.ProcessBuilder("git", "push", "origin", "gh-pages") directory new File(tmpLoc)
+        val gitPush = new java.lang.ProcessBuilder("git", "push", githubRemote, "gh-pages") directory new File(tmpLoc)
 
         val gitRes = gitClone #&& copySite #&& gitAdd #&& gitCommit #&& gitPush!
 
