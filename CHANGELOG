@@ -1,3 +1,12 @@
+1.0.0
+-----
+release: 24 Sep 2011
+
+- dont validate config files by default; make it a setting in the project
+  file to turn on
+- expose a way to narrow the set of config files to validate
+- allow publish-to-github's remote repo to be overridden
+
 0.12.12
 -------
 release: 24 Aug 2011
