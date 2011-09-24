@@ -200,7 +200,7 @@ trait BuildSite extends MavenStyleScalaPaths {
         val copySite = new java.lang.ProcessBuilder("cp",  "-r",  siteFullPath + File.separator, ".") directory new File(tmpLoc)
         val gitAdd = new java.lang.ProcessBuilder("git", "add", ".") directory new File(tmpLoc)
         val gitCommit = new java.lang.ProcessBuilder("git", "commit", "--allow-empty", "-m", "site update") directory new File(tmpLoc)
-        val gitPush = new java.lang.ProcessBuilder("git", "push", githubRemote, "gh-pages") directory new File(tmpLoc)
+        val gitPush = new java.lang.ProcessBuilder("git", "push", "origin", "gh-pages") directory new File(tmpLoc)
 
         val gitRes = gitClone #&& copySite #&& gitAdd #&& gitCommit #&& gitPush!
 
