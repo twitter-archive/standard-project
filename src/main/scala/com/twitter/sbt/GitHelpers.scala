@@ -22,5 +22,10 @@ trait GitHelpers {
 
   def gitTag(tag: String) { run(<x>git tag -m {tag} {tag}</x>) }
 
-  def gitIsCleanWorkingTree = run("git status").contains("nothing to commit (working directory clean)")
+  def gitIsCleanWorkingTree = {
+    val status = run("git status")
+    status.contains("nothing to commit (working directory clean)") ||
+      status.contains("nothing added to commit but untracked files present")
+  }
+
 }
