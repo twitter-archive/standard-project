@@ -1,37 +1,70 @@
 package com.twitter.sbt
 
-import _root_.sbt._
-import java.io.FileWriter
-import java.util.{Date, Properties}
-import java.text.SimpleDateFormat
+import sbt._
+import Keys._
+import java.io.{File, FileWriter}
+import java.util.Properties
 
-trait BuildProperties extends DefaultProject with SourceControlledProject {
-  def timestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date)
+/**
+ * add various build-environment properties to a build.properties file in the built jar
+ */
+object BuildProperties extends Plugin {
+  // most of this stuff is only supported by default in GitProjects
+  import GitProject._
+  /**
+   * package in which to write our build.properties file.
+   */
+  val buildPropertiesPackage = SettingKey[String]("build-properties-package", "the package in which to write build properties")
+  /**
+   * the directory we should write to. Depends on build-properties-package
+   */
+  val buildPropertiesDir = SettingKey[String]("build-properties-dir", "the directory to write build properties to")
+  /**
+   * the actual file to write to. Depends on build-properties-dir
+   */
+  val buildPropertiesFile = SettingKey[String]("build-properties-path", "the path to write build properties to")
+  /**
+   * the task to write out the properties
+   */
+  val buildPropertiesWrite = TaskKey[Unit]("build-properties-write", "writes various build properties to a file in resources")
 
-  // make a build.properties file and sneak it into the packaged jar.
-  def buildPackage = organization + "." + name
-  def packageResourcesPath = buildPackage.split("\\.").foldLeft(mainResourcesOutputPath ##) { _ / _ }
-  def buildPropertiesPath = packageResourcesPath / "build.properties"
-  override def packagePaths = super.packagePaths +++ buildPropertiesPath
-
-  def writeBuildPropertiesTask = task {
-    packageResourcesPath.asFile.mkdirs()
+  def writeBuildProperties(name: String,
+                           version: String,
+                           timestamp: Long,
+                           currentRevision: Option[String],
+                           branchName: Option[String],
+                           lastFewCommits: Option[Seq[String]],
+                           targetFile: File) {
+    val targetFileDir = targetFile.getParent
+    new File(targetFileDir).mkdirs()
     val buildProperties = new Properties
     buildProperties.setProperty("name", name)
-    buildProperties.setProperty("version", version.toString)
-    buildProperties.setProperty("build_name", timestamp)
+    buildProperties.setProperty("version", version)
+    buildProperties.setProperty("build_name", timestamp.toString)
     currentRevision.foreach(buildProperties.setProperty("build_revision", _))
     branchName.foreach(buildProperties.setProperty("build_branch_name", _))
-    lastFewCommits.foreach(buildProperties.setProperty("build_last_few_commits", _))
-
-    val fileWriter = new FileWriter(buildPropertiesPath.asFile)
+    lastFewCommits.foreach { commits =>
+      buildProperties.setProperty("build_last_few_commits", commits.mkString("\n"))
+    }
+    val fileWriter = new FileWriter(targetFile)
     buildProperties.store(fileWriter, "")
     fileWriter.close()
-    None
-  }.dependsOn(copyResources)
+  }
 
-  val WriteBuildPropertiesDescription = "Writes a build.properties file into the target folder."
-  lazy val writeBuildProperties = writeBuildPropertiesTask dependsOn(copyResources) describedAs WriteBuildPropertiesDescription
-
-  override def packageAction = super.packageAction dependsOn(writeBuildProperties)
+  val newSettings: Seq[Setting[_]] = Seq(
+    buildPropertiesPackage <<= (organization, name) { (o, n) => o + "." + n },
+    buildPropertiesDir <<= (target in Compile, buildPropertiesPackage) {(r, b) =>
+      val packageSplits = b.split("\\.")
+      val classesPath = new File(r.getCanonicalPath, "classes")                  
+      val buildPropsPath = packageSplits.foldLeft(classesPath) {(f, d) => new File(f, d)}
+      buildPropsPath.getCanonicalPath                                                                        
+    },
+    buildPropertiesFile <<= (buildPropertiesDir) { b => new File(b, "build.properties").getCanonicalPath},
+    buildPropertiesWrite <<= (name, version, buildPropertiesFile, gitProjectSha, gitBranchName, gitLastCommits) map {
+      (n, v, b, sha, branch, commits) => {
+      writeBuildProperties(n, v, System.currentTimeMillis, sha, branch, commits, new File(b))
+    }},
+    // make sure build-properties-write gets executed before a package
+    (Keys.`package` in Compile) <<= (Keys.`package` in Compile).dependsOn(buildPropertiesWrite)
+  )
 }

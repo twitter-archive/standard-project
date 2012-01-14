@@ -1,26 +1,24 @@
 package com.twitter.sbt
 
-import _root_.sbt._
-import java.io.File
+import sbt._
+import Keys._
 
-trait PublishLocalWithMavenStyleBasePattern extends StandardManagedProject {
-  val localIvyBasePattern = "[organisation]/[module]/[revision]/ivy-[revision](-[classifier]).[ext]"
-  val localm2 = Resolver.file("localm2", new File(Resolver.userIvyRoot + "/local"))(
-    Patterns(Seq(localIvyBasePattern), Seq(Resolver.mavenStyleBasePattern), true))
-
-  override def localRepos = super.localRepos + localm2
-
-  def usesMavenStyleBasePatternInPublishLocalConfiguration: Boolean = info.parent match {
-    case Some(parent: PublishLocalWithMavenStyleBasePattern) =>
-      parent.usesMavenStyleBasePatternInPublishLocalConfiguration
-    case _ =>
-      true
-  }
-
-  override def publishLocalConfiguration = {
-    if (usesMavenStyleBasePatternInPublishLocalConfiguration)
-      new DefaultPublishConfiguration("localm2", "release", true)
-    else
-      super.publishLocalConfiguration
-  }
+/**
+ * replaces the resolver named "local" with a maven style one.
+ * This local one is defined in DefaultRepos
+ */
+object PublishLocalWithMavenStyleBasePattern extends Plugin {
+  import DefaultRepos._
+  val newSettings: Seq[Setting[_]] = Seq(
+    publishMavenStyle := true,
+    externalResolvers <<= (externalResolvers, localResolver) map { (e, lOpt) =>
+      lOpt match {
+        case Some(l) => {
+          val filtered = e.filter(r => r.name != "local")
+          filtered ++ Seq(l)
+        }
+        case _ => e
+      }
+    }
+  )
 }

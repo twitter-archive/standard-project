@@ -1,136 +1,131 @@
 package com.twitter.sbt
 
-import _root_.sbt._
-import scala.collection.Set
-import java.io.File
+import sbt._
+import Keys._
 
-trait PackageDist extends DefaultProject with SourceControlledProject with Environmentalist {
-  // override me for releases!
-  def releaseBuild = false
-
-  // workaround bug in sbt that hides scala-compiler.
-  override def filterScalaJars = false
-
-  private[this] def paths(f: BasicScalaProject => PathFinder) =
-    Path.lazyPathFinder {
-      topologicalSort flatMap {
-        case sp: BasicScalaProject => f(sp).get
-        case _ => Nil
-      }
-    }
-
-  // build the executable jar's classpath.
-  // (why is it necessary to explicitly remove the target/{classes,resources} paths? hm.)
-  def dependentJars = {
-    val jars = (
-          jarsOfProjectDependencies
-      +++ runClasspath
-      +++ mainDependencies.scalaJars
-      --- paths(_.mainCompilePath)
-      --- paths(_.mainResourcesOutputPath)
-    )
-
-    if (jars.get.find { jar => jar.name.startsWith("scala-library-") }.isDefined) {
-      // workaround bug in sbt: if the compiler is explicitly included, don't include 2 versions
-      // of the library.
-      jars --- jars.filter { jar =>
-        jar.absolutePath.contains("/boot/") && jar.name == "scala-library.jar"
-      }
-    } else {
-      jars
-    }
-  }
-
-  def dependentJarNames = dependentJars.getFiles.map(_.getName).filter(_.endsWith(".jar"))
-  override def manifestClassPath = Some(dependentJarNames.map { "libs/" + _ }.mkString(" "))
-
-  def distName = if (releaseBuild) (name + "-" + version) else name
-  def distPath = "dist" / distName ##
-
-  def configPath = "config" ##
-  def configOutputPath = distPath / "config"
-
-  def scriptsPath = "src" / "scripts" ##
-  def scriptsOutputPath = distPath / "scripts"
-
-  def distZipName = {
-    val revName = currentRevision.map(_.substring(0, 8)).getOrElse(version)
-    "%s-%s.zip".format(name, if (releaseBuild) version else revName)
-  }
-
-  // copy scripts.
-  val CopyScriptsDescription = "Copies scripts into the dist folder."
-  val copyScripts = task {
-    val rev = currentRevision.getOrElse("")
-    val filters = Map(
-      "CLASSPATH" -> (publicClasspath +++ mainDependencies.scalaJars).getPaths.mkString(":"),
-      "TEST_CLASSPATH" -> testClasspath.getPaths.mkString(":"),
-      "DIST_CLASSPATH" -> (dependentJarNames.map { "${DIST_HOME}/libs/" + _ }.mkString(":") +
-        ":${DIST_HOME}/" + defaultJarName),
-      "DIST_NAME" -> name,
-      "VERSION" -> version.toString,
-      "REVISION" -> rev
-    )
-
-    scriptsOutputPath.asFile.mkdirs()
-    (scriptsPath ***).filter { !_.isDirectory }.get.foreach { path =>
-      val dest = Path.fromString(scriptsOutputPath, path.relativePath)
-      new File(dest.absolutePath.toString).getParentFile().mkdirs()
-      FileFilter.filter(path, dest, filters)
-      Runtime.getRuntime().exec(List("chmod", "+x", dest.absolutePath.toString).toArray).waitFor()
-    }
-    None
-  } named("copy-scripts") dependsOn(`compile`) describedAs CopyScriptsDescription
-
-  val allConfigFiles: Set[Path] = (configPath ** "*.scala").filter { !_.isDirectory }.get
-
-  // the set of config files to validate during package-dist.
-  // to validate everything in config/, set validateConfigFilesSet = allConfigFiles.
-  def validateConfigFilesSet: Set[Path] = Set()
-
-  // run --validate on requested config files to make sure they compile.
-  def validateConfigFilesTask = task {
-    if (environment.get("NO_VALIDATE").isDefined) {
-      None
-    } else {
-      val distJar = (distPath / (jarPath.name)).absolutePath
-      validateConfigFilesSet.map { path =>
-        val cmd = Array("java", "-jar", distJar, "-f", path.absolutePath, "--validate")
-        val exitCode = Process(cmd).run().exitValue()
-        if (exitCode == 0) {
-          None
-        } else {
-          Some("Failed to validate " + path.toString)
-        }
-      }.foldLeft[Option[String]](None) { _ orElse _ }
-    }
-  } describedAs("Validate any config files.")
-  lazy val validateConfigFiles = validateConfigFilesTask
-
+/**
+ * build a twitter style packgae containing the packaged jar, all its deps,
+ * configs, scripts, etc.
+ */
+object PackageDist extends Plugin {
+  // only works for git projects
+  import GitProject._
+  
   /**
-   * copy into dist:
-   * - packaged jar
-   * - pom file for export
-   * - dependent libs
-   * - config files
-   * - scripts
+   * flag for determining whether we name this with a version or a sha
    */
-  def packageDistTask = interactiveTask {
-    distPath.asFile.mkdirs()
-    (distPath / "libs").asFile.mkdirs()
-    configOutputPath.asFile.mkdirs()
+  val packageDistReleaseBuild = SettingKey[Boolean]("package-dist-release-build", "is this a release build")
+  /**
+   * where to build and stick the dist
+   */
+  val packageDistDir = SettingKey[File]("package-dist-dir", "the directory to package dists into")
+  /**
+   * the task to actually build the zip file
+   */
+  val packageDist = TaskKey[Unit]("package-dist", "package a distribution for the current project")
+  /**
+   * the name of our distribution
+   */
+  val packageDistName = SettingKey[String]("package-dist-name", "name of our distribution")
+  /**
+   * where to find config files (if any)
+   */
+  val packageDistConfigPath = SettingKey[Option[File]]("package-dist-config-path", "location of config files (if any)")
+  /**
+   * where to write configs within the zip
+   */
+  val packageDistConfigOutputPath = SettingKey[Option[File]]("package-dist-config-output-path", "location of config output path")
+  /**
+   * where to find script files (if any)
+   */
+  val packageDistScriptsPath = SettingKey[Option[File]]("package-dist-scripts-path", "location of scripts (if any)")
+  /**
+   * where to write script files in the zip
+   */
+  val packageDistScriptsOutputPath = SettingKey[Option[File]]("package-dist-scripts-output-path", "location of scripts output path")
+  /**
+   * the name of our zip
+   */
+  val packageDistZipName = TaskKey[String]("package-dist-zip-name", "name of packaged zip file")
+  /**
+   * task to clean up the dist directory
+   */
+  val packageDistClean = TaskKey[Unit]("package-dist-clean", "clean distribution artifacts")
 
-    FileUtilities.copyFlat(List(jarPath), distPath, log).left.toOption orElse
-      FileUtilities.copyFlat(dependentJars.get, distPath / "libs", log).left.toOption orElse
-      FileUtilities.copy((configPath ***).get, configOutputPath, log).left.toOption orElse
-      FileUtilities.copy(((outputPath ##) ** "*.pom").get, distPath, log).left.toOption orElse
-      FileUtilities.zip((("dist" / distName) ##).get, "dist" / distZipName, true, log)
-  }
+  val newSettings = Seq(
+    exportJars := true,
+    // write a classpath entry to the manifest
+    packageOptions <+= (dependencyClasspath in Compile) map { cp =>
+      val manifestClasspath = cp.map(_.data).map(f => "libs/" + f.getName).mkString(" ")
+      Package.ManifestAttributes(("Class-Path", manifestClasspath))
+    },
+    packageDistDir <<= (baseDirectory) { b => b / "dist"},
+    packageDistReleaseBuild := false,
+    packageDistName <<= (packageDistReleaseBuild, name, version) { (r, n, v) =>
+      if (r) {
+        n + "-" + v
+      } else {
+        n
+      }
+    },
+    packageDistConfigPath <<= (baseDirectory) { b => Some(b / "config") },
+    packageDistConfigOutputPath <<= (packageDistDir) { d => Some(d / "config") },
+    packageDistScriptsPath <<= (baseDirectory) {b => Some(b / "src" / "scripts") },
+    packageDistScriptsOutputPath <<= (packageDistDir) { d => Some(d / "scripts") },
+    // if release, then name it the version. otherwise the first 8 characters of the sha
+    packageDistZipName <<= (packageDistReleaseBuild, gitProjectSha, name, version) map { (r, g, n, v) =>
+      val revName = g.map(_.substring(0, 8)).getOrElse(v)
+      "%s-%s.zip".format(n, if (r) v else revName)                 
+    },
+    // package all the things
+    packageDist <<= (dependencyClasspath in Runtime,
+                     exportedProducts in Compile,
+                     packageDistDir,
+                     packageDistConfigPath,
+                     packageDistConfigOutputPath,
+                     packageDistScriptsPath,
+                     packageDistScriptsOutputPath,
+                     packageDistZipName) map { (cp, exp, dest, conf, confOut, script, scriptOut, zipName) =>
+      // build up lib directory
+      val jarFiles = cp.map(_.data).filter(f => !exp.map(_.data).contains(f))
+      val jarDest = dest / "libs"
+      if (!jarDest.exists) {
+        jarDest.mkdirs()
+      }
+      val copySet = jarFiles.map { f =>
+        (f, jarDest / f.getName)
+      }
+      IO.copy(copySet)
 
-  val PackageDistDescription = "Creates a deployable zip file with dependencies, config, and scripts."
-  lazy val packageDist = packageDistTask.dependsOn(`package`, makePom, copyScripts).describedAs(PackageDistDescription) && validateConfigFilesTask
-
-  val cleanDist = cleanTask("dist" ##) describedAs("Erase any packaged distributions.")
-  override def cleanAction = super.cleanAction dependsOn(cleanDist)
+      // utility to copy a directory tree to a new one
+      def copyDirs(srcOpt: Option[File], destOpt: Option[File]) {
+        srcOpt.foreach { src =>
+          destOpt.foreach { dest =>
+            val rebaser = Path.rebase(src, dest)
+            val allFiles = (PathFinder(src) ***).filter(!_.isDirectory)get
+            val copySet = allFiles.flatMap { f =>
+              rebaser(f) map { rebased =>
+                (f, rebased)
+              }
+            }
+            IO.copy(copySet)                         
+          }
+        }
+      }
+      // copy all of scripts and confs (rebased to dist directory)
+      copyDirs(conf, confOut)
+      copyDirs(script, scriptOut)
+      // copy all our generated "products" (i.e. "the jar")
+      val prodCopySet = exp.map(p => (p.data, dest / p.data.getName))
+      val productsToPackage = prodCopySet.map(_._2)
+      IO.copy(prodCopySet)
+      // build the zip
+      val filesToPackage = productsToPackage ++
+         confOut.map { confOut => (PathFinder(confOut) ***).get}.getOrElse(Seq()) ++
+      scriptOut.map { scriptOut => (PathFinder(scriptOut) ***).get}.getOrElse(Seq()) ++
+         (PathFinder(dest / "libs") ***).get
+      val zipRebaser = Path.rebase(dest, "")
+      IO.zip(filesToPackage.map(f => (f, zipRebaser(f).get)), dest / zipName)
+    }
+  )  
 }
-

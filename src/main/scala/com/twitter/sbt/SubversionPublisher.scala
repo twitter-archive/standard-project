@@ -1,91 +1,109 @@
 package com.twitter.sbt
 
-import java.io.FileReader
-import java.util.Properties
+import sbt._
+import Keys._
+
 import fm.last.ivy.plugins.svnresolver.SvnResolver
-import _root_.sbt._
+
+import java.io.{File, FileReader}
+import java.util.Properties
 
 /**
- * Semi-hacky way to publish to a subversion-based maven repository, using ivy-svn.
+ * support subversion resolvers
  */
-trait SubversionPublisher extends BasicManagedProject {
-  private val prefs = new Properties()
-  val prefsFilename = System.getProperty("user.home") + "/.svnrepo"
+object SubversionPublisher extends Plugin {
+  /**
+   * a file that contains your username and password
+   */
+  val subversionPrefsFile = SettingKey[Option[File]]("subversion-prefs-file", "preferences file for subversion publisher")
+  /**
+   * the repo to publish to
+   */
+  val subversionRepository = SettingKey[Option[String]]("subversion-repository", "subversion repo to publish artifacts to")
+  /**
+   * svn user if you want to override another way than the prefs file
+   */
+  val subversionUser = SettingKey[Option[String]]("subversion-user", "subversion username. usually read from subversion-prefs-file")
+  /**
+   * svn password if you want to override another way than the prefs file
+   */
+  val subversionPassword = SettingKey[Option[String]]("subversion-password", "subversion password. usually read from subversion-prefs-file")
+  /**
+   * the loaded prefs file, or your override
+   */
+  val subversionProperties = SettingKey[Option[Properties]]("subversion-properties", "loaded subversion preferences")
+  /**
+   * the svn url to publish to
+   */
+  val subversionPublishTo = SettingKey[Option[Resolver]]("subversion-publish-to", "subversion resolver to publish to")
 
-  // override me to publish to subversion.
-  def subversionRepository: Option[String] = info.parent match {
-    case Some(parent: SubversionPublisher) => parent.subversionRepository
-    case _ => None
-  }
-
-  private val loaded = try {
-    prefs.load(new FileReader(prefsFilename))
-    true
-  } catch {
-    case e: Exception =>
-      log.warn("No .svnrepo file; no svn repo will be configured.")
-      false
-  }
-
-  lazy val subversionResolver = {
-    if (loaded) {
-      subversionRepository.map { repo =>
-        val resolver = new SvnResolver()
-        resolver.setName("svn")
-        resolver.setRepositoryRoot(repo)
-        resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"))
-        resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
-
-        val username = prefs.getProperty("username")
-        if (username ne null) {
-          resolver.setUserName(username)
-        }
-        val password = prefs.getProperty("password")
-        if (password eq null) {
-          // Try to prompt the user for a password.
-          val console = System.console
-          if (console ne null) {
-            // This is super janky -- it seems that sbt hoses the
-            // console in a way so that it isn't line-buffered anymore,
-            // or for some other reason causes Console.readPassword to
-            // give us only one character at time.
-            def readPassword: Stream[Char] = {
-              val chars = console.readPassword("SVN repository password: ")
-              if ((chars eq null) || chars.isEmpty)
-                Stream.empty
-              else
-                Stream.concat(Stream.fromIterator(chars.elements), readPassword)
-            }
-
-            resolver.setUserPassword(new String(readPassword.toArray))
-          }
+  /**
+   * given an optional properties object and a key, return a value if it exists
+   */
+  def mapPropOpt(propOpt: Option[Properties], key: String): Option[String] = {
+    propOpt match {
+      case Some(prefs) => {
+        val rv = prefs.getProperty(key)
+        if (rv ne null) {
+          Some(rv)
         } else {
-          resolver.setUserPassword(password)
+          None
         }
-        resolver.setBinaryDiff("true")
-        resolver.setBinaryDiffFolderName(".upload")
-        resolver.setCleanupPublishFolder("true")
-        resolver
       }
-    } else {
-      None
+      case _ => None
     }
   }
 
-  override def ivySbt: IvySbt = {
-    val i = super.ivySbt
-    subversionResolver.foreach { resolver =>
-      i.withIvy { _.getSettings().addResolver(resolver) }
-    }
-    i
-  }
-
-  override def publishConfiguration: DefaultPublishConfiguration = {
-    subversionResolver match {
-      case None =>
-        super.publishConfiguration
-      case Some(resolver) =>
-        new DefaultPublishConfiguration(resolver.getName(), "release", true)
-    }
-  }
+  val newSettings = Seq(
+    // defaults to ~/.svnrepo
+    subversionPrefsFile := {
+      Some(new File(System.getProperty("user.home") + "/.svnrepo"))
+    },
+    // load the file
+    subversionProperties <<= (subversionPrefsFile) { prefsOpt =>
+      try {
+        prefsOpt match {
+          case Some(prefs) => {
+            val prefProps = new Properties()
+            prefProps.load(new FileReader(prefs))
+            Some(prefProps)
+          }
+          case _ => None
+        }
+      } catch {
+        case e: Exception => {
+          println("No .svnrepo file; no svn repo will be configured.")
+          None
+        }
+      }
+    },
+    subversionRepository := None,
+    subversionUser <<= (subversionProperties) { propsOpt => mapPropOpt(propsOpt, "username") },
+    subversionPassword <<= (subversionProperties) { propsOpt => mapPropOpt(propsOpt, "password") },
+    // make our resolver
+    subversionPublishTo <<= (subversionUser, subversionPassword, subversionRepository, subversionProperties) {
+      (userOpt, passwordOpt, repoOpt, svnProps) =>
+      val resolverOpt: Option[Resolver] = userOpt flatMap { username =>
+        passwordOpt flatMap { password =>
+          repoOpt flatMap {repo =>
+            svnProps map { prefs =>
+              val resolver = new SvnResolver()
+              resolver.setName("svn")
+              resolver.setRepositoryRoot(repo)
+              resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"))
+              resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
+              resolver.setUserName(username)
+              resolver.setUserPassword(password)
+              resolver.setBinaryDiff("true")
+              resolver.setBinaryDiffFolderName(".upload")
+              resolver.setCleanupPublishFolder("true")
+              new RawRepository(resolver)
+            }
+          }
+        }
+      }
+      resolverOpt
+    },
+    publishTo <<= subversionPublishTo
+  )
 }

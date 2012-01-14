@@ -1,8 +1,10 @@
 package com.twitter.sbt
 
-import _root_.sbt._
+import sbt._
 
-
+/**
+ * swallow all the messages
+ */
 object NullLogger extends BasicLogger {
   def trace(t: => Throwable) {}
   def log(level: Level.Value, message: => String) {}

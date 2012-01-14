@@ -1,7 +1,14 @@
 package com.twitter.sbt
 
-import scala.collection.jcl
+import scala.collection.mutable.Map
+import scala.collection.JavaConversions._
 
+/**
+ * make a nice Scala map of the environment
+ */
 trait Environmentalist {
-  val environment = jcl.Map(System.getenv())
+  /**
+   * a Scala map of System.getenv()
+   */
+  val environment: Map[String, String] = System.getenv()
 }
