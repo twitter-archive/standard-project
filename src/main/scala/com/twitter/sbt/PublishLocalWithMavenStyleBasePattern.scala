@@ -11,7 +11,7 @@ object PublishLocalWithMavenStyleBasePattern extends Plugin {
   import DefaultRepos._
   val newSettings: Seq[Setting[_]] = Seq(
     publishMavenStyle := true,
-    externalResolvers <<= (externalResolvers, localResolver) map { (e, lOpt) =>
+    externalResolvers <<= (externalResolvers, localPublishResolver) map { (e, lOpt) =>
       lOpt match {
         case Some(l) => {
           val filtered = e.filter(r => r.name != "local")

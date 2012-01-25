@@ -1,8 +1,8 @@
 organization := "com.twitter"
 
-name := "standard-project"
+name := "standard-project2"
 
-version := "11.0.0-SNAPSHOT"
+version := "0.0.1-SNAPSHOT"
 
 sbtPlugin := true
 
@@ -11,5 +11,14 @@ libraryDependencies ++= Seq (
   "org.markdownj" % "markdownj" % "0.3.0-1.0.2b4",
   "org.freemarker" % "freemarker" % "2.3.16"
 )
+
+credentials += Credentials(Path.userHome / ".artifactory-credentials")
+
+publishTo <<= (version) { version: String =>
+  val artifactory = "http://artifactory.local.twitter.com/"
+  if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at artifactory + "libs-snapshots-local/") 
+  else                                   Some("releases"  at artifactory + "libs-releases-local/")
+}
+
 
 seq(ScriptedPlugin.scriptedSettings: _*)

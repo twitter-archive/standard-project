@@ -166,14 +166,18 @@ object VersionManagement extends Plugin {
 
   val newSettings = Seq(
     // very crude, but really, if you have fancy pants version settings then you're on your own
-    versionRegexes := Seq(""".*version.*:=\s*(".*").*"""),
-    // register new commands
-    commands ++= Seq(versionBumpMajor,
-                     versionBumpMinor,
-                     versionBumpPatch,
-                     versionToSnapshot,
-                     versionToStable,
-                     versionSet)
+    versionRegexes := Seq(""".*version.*:=\s*(".*").*""")
    )
 
+  /**
+   * make commands available to projects
+   */
+  override lazy val settings = Seq(commands ++= Seq(
+    versionBumpMajor,
+    versionBumpMinor,
+    versionBumpPatch,
+    versionToSnapshot,
+    versionToStable,
+    versionSet))
+    
 }

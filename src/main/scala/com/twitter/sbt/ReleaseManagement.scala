@@ -70,4 +70,10 @@ object ReleaseManagement extends Plugin with GitHelpers {
       }
     }
   )
+
+  /**
+   * make release-publish available to projects
+   */
+  override lazy val settings = Seq(commands += releasePublish)
+
 }

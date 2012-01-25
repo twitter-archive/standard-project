@@ -24,9 +24,13 @@ object DefaultRepos extends Plugin with Environmentalist {
    */
   val localRepoPath = SettingKey[String]("local-repo-path", "the directory to use as a local repo")
   /**
-   * resolver used to publish to local-repo-path
+   * resolver used to resolve locally published artifacts from local-repo-path
    */
   val localResolver = SettingKey[Option[Resolver]]("local-resolver", "local resolver for artifacts")
+  /**
+   * resolver used to publish artifacts to local-repo-path
+   */
+  val localPublishResolver = SettingKey[Option[Resolver]]("local-publish-resolver", "local resolver for artifacts")
   /**
    * private proxy to use (if SBT_TWITTER is set)
    */
@@ -43,6 +47,9 @@ object DefaultRepos extends Plugin with Environmentalist {
     internalPublicProxy := "http://artifactory.local.twitter.com/open-source/",
     // set the local resolver to use maven style patterns
     localResolver <<= (localRepoPath) {l =>
+      Some("local-m2" at "file://%s".format(l))
+    },
+    localPublishResolver <<= (localRepoPath) {l =>
       Some(Resolver.file("local", new java.io.File(l))(Resolver.mavenStylePatterns))
     },
     // pick a proxy based on env settings
@@ -76,12 +83,16 @@ object DefaultRepos extends Plugin with Environmentalist {
       "jboss" at "http://repository.jboss.org/nexus/content/groups/public/"
     ),
     // configure resolvers for the build
-    resolvers in ThisBuild <<= (resolvers, defaultResolvers, proxyResolver) { (r, d, p) =>
-      p match {
+    resolvers in ThisBuild <<= (resolvers, defaultResolvers, proxyResolver, localResolver) { (r, d, p, l) =>
+      val remotes = p match {
         case Some(url) =>
           Seq("proxy-resolver" at url)
         case None =>
-          r ++ d
+          (r ++ d)
+      }
+      l match {
+        case Some(resolver) => resolver +: remotes
+        case _ => remotes
       }
     }
   )
