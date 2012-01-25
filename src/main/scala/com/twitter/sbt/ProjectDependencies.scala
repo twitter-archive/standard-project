@@ -346,6 +346,32 @@ trait ParentProjectDependencies
     "Analagous to running tests in a project " +
     "without project dependencies.")
 
+  lazy val publishOnly = task { args =>
+    ivyTask {
+      val publishConfig = publishConfiguration
+      import publishConfig._
+      val deliveredIvy = if(publishIvy) Some(deliveredPattern) else None
+      IvyActions.makePom(deliverIvyModule, makePomConfiguration, pomPath asFile)
+      IvyActions.deliver(deliverIvyModule, status, deliveredPattern, extraDependencies, configurations, ivyUpdateLogging)
+      IvyActions.publish(publishIvyModule, resolverName, srcArtifactPatterns, deliveredIvy, configurations)
+    }
+  } describedAs ("publish only the current project.")
+
+  lazy val publishProject = interactiveTask {
+    val allProjects = projectSubProjects ++ Seq(subProjectParent)
+    val publishableProjects = allProjects filter { p =>
+      p.methods contains "publish-only"
+    }
+    log.info("publish-project will publish %s".format(publishableProjects.mkString(", ")))
+    val errors = publishableProjects map { p =>
+      p.call("publish-only", Array())
+    }
+    // report only the first error.
+    val error = errors find { _.isDefined }
+    error flatMap { x => x }  // using "identity" here fails type inference :-/
+  } describedAs("publish only the current project and subprojects.")
+
+
   /**
    * Utilities / debugging.
    */
