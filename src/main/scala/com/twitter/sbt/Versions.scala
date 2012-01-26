@@ -120,7 +120,7 @@ object VersionManagement extends Plugin {
         None
       }
     }
-    newVersion.map(v => extracted.append(Seq(version := v.toString), state)).getOrElse(state)
+    State.stateOps(state).reload
   }
 
   /**
