@@ -260,12 +260,54 @@ used by overriding subversionRepository, e.g.
 
     override def subversionRepository = Some("http://svn.me.com/repo")
 
+### ArtifactoryPublisher
+
+publish to a standard ibiblio resolver. This has odd interactions with
+SubversionPublisher for historical reasons. Be careful: you _must_ mix
+this in _after_ SubversionPublisher if you use both.
+
+There are two additional environment variables that control the actual
+resolver used to publish.
+
+1. if SBT\_CI is set and proxyPublishRepo is defined, proxyPublishRepo is used
+2. if SBT\_PROXY\_PUBLISH\_REPO is set, it is used as the root URL to publish to
+
+Credentials are read from ~/.artifactory-credentials, and look like
+the following
+{code}
+realm=Artifactory Realm
+host=<your host>
+user=<you>
+password=<your password>
+{code}
+
+#### Settings of interest
+* proxyPublishRepo: Option[String] - the _base_ url of the repo to
+publish to.
+* proxyQualifier: String - used to build up proxyRepoPublishTarget
+* proxySnapshotOrRelease: String - used to define the resolver type as
+well as build up proxyRepoPublishtarget
+* proxyRepoPublishTarget: String - the uri within proxyPublishRepo to publish
+to. Defaults to 
+{code}
+"libs-%ss-%s".format(proxySnapshotOrRelease, proxyQualifier)
+{code}
+* proxyPublish: Boolean - whether or not to use the proxy to publish.
+  Defaults to
+{code}
+environment.get("SBT_CI").isDefined
+{code}
+* repositories: Seq[Resolver] - adds the proxy resolver to
+  repositories if it's defined
+
 ### TartifactoryRepos
 
 Sort of deprecated, more or less does what DefaultRepos does now.  Use
 DefaultRepos instead.
 
 ### TartifactoryPublisher
+
+Deprecated. See ArtifactoryPublisher.
 
 Publish to an artifactory instance. You'll need to enter credentials
 at the command line for each publish, or override publishtask
