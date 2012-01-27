@@ -12,7 +12,7 @@ with PublishSite
 with ReleaseManagement {
   override def disableCrossPaths = true
 
-  override def subversionRepository = Some("http://svn.local.twitter.com/maven-public")
+  override def subversionRepository = Some("https://svn.twitter.biz/maven-public")
 
   val ivySvn = "ivysvn" % "ivysvn" % "2.1.0" from "http://maven.twttr.com/ivysvn/ivysvn/2.1.0/ivysvn-2.1.0.jar"
 
