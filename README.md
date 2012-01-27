@@ -269,7 +269,7 @@ this in _after_ SubversionPublisher if you use both.
 There are two additional environment variables that control the actual
 resolver used to publish.
 
-1. if SBT\_CI is set and proxyPublishRepo is defined, proxyPublishRepo is used
+1. if SBT\_PROXY\_PUBLISH is set and proxyPublishRepo is defined, proxyPublishRepo is used
 2. if SBT\_PROXY\_PUBLISH\_REPO is set, it is used as the root URL to publish to
 
 Credentials are read from ~/.artifactory-credentials, and look like

@@ -36,7 +36,7 @@ trait ArtifactoryPublisher extends SubversionPublisher with Environmentalist {
     "libs-%ss-%s".format(proxySnapshotOrRelease, proxyQualifier)
   }
 
-  def proxyPublish = environment.get("SBT_CI").isDefined
+  def proxyPublish = environment.get("SBT_PROXY_PUBLISH").isDefined
 
   override def repositories = {
     if (proxyPublish) {
