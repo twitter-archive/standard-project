@@ -28,7 +28,7 @@ object ReleaseManagement extends Plugin with GitHelpers {
     Project.runTask(releaseReady, state) match {
       // returned if releaseReady doesn't exist in the current state
       case None => {
-        println("no release-ready task defined")
+        state.log.error("no release-ready task defined")
         state.fail
       }
       // returned if releaseReady failed
@@ -37,7 +37,7 @@ object ReleaseManagement extends Plugin with GitHelpers {
         state.fail
       }
       case Some((s, Value(false))) => {
-        println("Stopping release")
+        state.log.error("Stopping release")
         state.fail
       }
       case Some((s, Value(true))) => {
@@ -50,22 +50,22 @@ object ReleaseManagement extends Plugin with GitHelpers {
 
   val newSettings = Seq(
     releasePublishTasks := Seq("release-ready", "version-to-stable", "publish-local", "publish", "git-commit", "git-tag", "version-bump-patch", "version-to-snapshot", "git-commit"),
-    releaseReady <<= (version, libraryDependencies) map { (v, deps) =>
+    releaseReady <<= (streams, version, libraryDependencies) map { (out, v, deps) =>
       val tags = ("git tag -l grep + %s".format(v) !!).trim
       // we don't release dirty trees
       if (!gitIsCleanWorkingTree) {
-        println("Working directory is not clean")
+        out.log.error("Working directory is not clean")
         false
       } else if (deps.exists(_.revision.contains("SNAPSHOT"))) {
         // we don't release with snapshot dependencies
-        println("Build has snapshotted depndencies")
+        out.log.error("Build has snapshotted depndencies")
         false
       } else if (tags.contains(v) && !tags.contains("SNAPSHOT")) {
         // we don't double-release
-        println("Cannot tag release version %s. Tag already exists".format(v))
+        out.log.error("Cannot tag release version %s. Tag already exists".format(v))
         false
       } else {
-        println("Current project is ok for release")
+        out.log.info("Current project is ok for release")
         true
       }
     }

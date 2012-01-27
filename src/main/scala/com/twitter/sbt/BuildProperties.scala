@@ -26,7 +26,7 @@ object BuildProperties extends Plugin {
   /**
    * the task to write out the properties
    */
-  val buildPropertiesWrite = TaskKey[Unit]("build-properties-write", "writes various build properties to a file in resources")
+  val buildPropertiesWrite = TaskKey[Seq[File]]("build-properties-write", "writes various build properties to a file in resources")
 
   def writeBuildProperties(name: String,
                            version: String,
@@ -34,7 +34,7 @@ object BuildProperties extends Plugin {
                            currentRevision: Option[String],
                            branchName: Option[String],
                            lastFewCommits: Option[Seq[String]],
-                           targetFile: File) {
+                           targetFile: File): Seq[File] = {
     val targetFileDir = targetFile.getParent
     new File(targetFileDir).mkdirs()
     val buildProperties = new Properties
@@ -49,14 +49,14 @@ object BuildProperties extends Plugin {
     val fileWriter = new FileWriter(targetFile)
     buildProperties.store(fileWriter, "")
     fileWriter.close()
+    Seq(targetFile)
   }
 
   val newSettings: Seq[Setting[_]] = Seq(
     buildPropertiesPackage <<= (organization, name) { (o, n) => o + "." + n },
-    buildPropertiesDir <<= (target in Compile, buildPropertiesPackage) {(r, b) =>
+    buildPropertiesDir <<= (resourceManaged in Compile, buildPropertiesPackage) {(r, b) =>
       val packageSplits = b.split("\\.")
-      val classesPath = new File(r.getCanonicalPath, "classes")                  
-      val buildPropsPath = packageSplits.foldLeft(classesPath) {(f, d) => new File(f, d)}
+      val buildPropsPath = packageSplits.foldLeft(r) {(f, d) => new File(f, d)}
       buildPropsPath.getCanonicalPath                                                                        
     },
     buildPropertiesFile <<= (buildPropertiesDir) { b => new File(b, "build.properties").getCanonicalPath},
@@ -64,7 +64,6 @@ object BuildProperties extends Plugin {
       (n, v, b, sha, branch, commits) => {
       writeBuildProperties(n, v, System.currentTimeMillis, sha, branch, commits, new File(b))
     }},
-    // make sure build-properties-write gets executed before a package
-    (Keys.`package` in Compile) <<= (Keys.`package` in Compile).dependsOn(buildPropertiesWrite)
+    resourceGenerators in Compile <+= buildPropertiesWrite
   )
 }
