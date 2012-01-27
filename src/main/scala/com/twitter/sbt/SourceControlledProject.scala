@@ -85,6 +85,9 @@ object GitProject extends Plugin {
       val pb = ("git add ." #&& Seq("git", "commit", "-m", "'%s'".format(m)))
       val proc = pb.run(false)
       proc.exitValue
-    }
+    },
+    // set these to false... we don't run commit/tag recursively on subprojects
+    aggregate in gitCommit := false,
+    aggregate in gitTag := false
   )
 }
