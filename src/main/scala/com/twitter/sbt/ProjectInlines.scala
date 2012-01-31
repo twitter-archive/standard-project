@@ -12,31 +12,33 @@ import com.twitter.sbt.SubversionPublisher._
  * capture an SBT ModuleID along with a git URL, subproject within that repo,
  * and an optional override for where it should be checked out
  */
-case class InlineableModuleID(moduleId: ModuleID,
-                              scm: String,
+case class InlineableModuleID(moduleId: Option[ModuleID],
+                              gitURI: Option[String] = None,
+                              projName: Option[String] = None,
+                              dir: Option[File] = None,
                               subproj: Option[String] = None,
+                              softLink: Option[String] = None,
                               dirOverride: Option[File] = None) {
+
+  def or(projDir: File) = copy(dir = Some(projDir))
   /**
    * convenience method for specifying a subproject
    */
-  def /(sub: String) = copy(subproj = Some(sub))
+  def in(dir: File) = copy(dir = Some(dir))
   /**
    * convenience method for attaching an scm uri
    */
-  def at(scm: String) = copy(scm = scm)
-  /**
-   * where we should clone the repo
-   */
-  def dir: File = {
-    dirOverride match {
-      case Some(d) => d
-      case _ => file("..") / scm.split("/").last.split("\\.").dropRight(1).mkString(".")
+  def at(git: String) = {
+    val newDir: Option[File] = dir match {
+      case Some(d) => Some(d)
+      case None => Some(file("..") / git.split("/").last.split("\\.").dropRight(1).mkString("."))
     }
+    val newSoftLink = softLink match {
+      case Some(s) => Some(s)
+      case None => Some(newDir.get.getName)
+    }
+    copy(gitURI = Some(git), dir = newDir, softLink = newSoftLink)
   }
-  /**
-   * marker dir
-   */
-  def softLink: String = dir.getName
 }
 
 /**
@@ -48,23 +50,28 @@ class Inlines (inlines: InlineableModuleID*) {
    * those projects we have softlinks for
    */
   def addDeps (p: Project): Project = (inlines.flatMap { inline =>
-    if (file(inline.softLink).exists) {
-      Some(symproj(file(inline.softLink), inline.subproj))
-    } else {
-      None
+    inline.softLink flatMap { softLink =>
+      if (file(softLink).exists) {
+        Some(symproj(file(softLink), inline.subproj))
+      } else {
+        None
+      }
     }
   }).foldLeft(p) { _ dependsOn _ }
   /**
    * scan through inlines, returning ModuleIDs for
    * those projects we do not have softlinks for
    */
-  def libDeps: Seq[ModuleID] = inlines.flatMap { inline =>
-    if (!file(inline.softLink).exists) {
-      Some(inline.moduleId)
-    } else {
-      None
+  def libDeps: Seq[ModuleID] = (inlines.flatMap { inline =>
+    inline.softLink.flatMap { softLink =>
+      if (!file(softLink).exists) {
+        Some(inline.moduleId)
+      } else {
+        None
+      }
     }
-  }
+  }).flatten
+
   /**
    * create a projectref from a file and subproj
    */
@@ -91,7 +98,7 @@ object Inlines extends Plugin {
   /**
    * implicit from ModuleID to InlineableModuleID
    */
-  implicit def moduleIdToInline(moduleId: ModuleID) = InlineableModuleID(moduleId, null)
+  implicit def moduleIdToInline(moduleId: ModuleID): InlineableModuleID = InlineableModuleID(Some(moduleId))
 }
 
 /**
@@ -99,36 +106,54 @@ object Inlines extends Plugin {
  */
 object InlinedProject {
 
+  def makeDepDir(state: State, projName: String, dir: File, inlineable: InlineableModuleID): Boolean = {
+    if (dir.exists) {
+      true
+    } else if (!dir.exists && inlineable.gitURI.isDefined) {
+      "git clone %s %s".format(inlineable.gitURI.get, file(dir.getCanonicalPath)) !
+
+      true
+    } else {
+      State.stateOps(state).log.error("%s has no SCM link defined, cannot create directory %s".format(projName, dir))
+      false
+    }
+  }
+
   /**
    * check to see if a project is cloned (if not, clone it)
    * create a softlink to current directory, reload state
    */
   def inline = Command.single("inline") { (state: State, v: String) => {
-    val f = file(v)
-    if (!f.exists) {
-      gitClone(state, v)
-    }
-    "ln -s %s ./%s".format(f.getCanonicalPath, f.getName) !
-
-    State.stateOps(state).reload
-  }}
-
-  /**
-   * clone a project by name.
-   */
-  def gitClone(state: State, v: String) {
     val extracted = Project.extract(state)
     val inlineables = extracted.get(Inlines.inlines)
-    inlineables.foreach(i => println("%s: %s".format(i, i.dir)))
-    val inlineable = inlineables.find(_.softLink == v).get
-     "git clone %s %s".format(inlineable.scm, file("../%s".format(inlineable.dir))) !
-  }
+    inlineables.find(_.softLink == Some(v)) match {
+      case Some(inlineable) => {
+        val stateOpt = for (dir <- inlineable.dir;
+                            softLink <- inlineable.softLink) yield {
+          if (makeDepDir(state, v, dir, inlineable)) {
+            val softLinkTarget = file(softLink)
+            if (!softLinkTarget.exists) {
+              "ln -s %s ./%s".format(dir.getCanonicalPath, softLink) !
+            }
+            State.stateOps(state).reload
+          } else {
+            state.fail
+          }
+        }
+        stateOpt.getOrElse(state.fail)
+      }
+      case _ => {
+        State.stateOps(state).log.error("couldn't find project %s to inline".format(v))
+        State.stateOps(state).reload
+      }
+    }
+  }}
 
   /**
    * remove softlink, reload project state
    */
   def outline = Command.single("outline") { (state: State, v: String) => {
-    "rm ./%s".format(v, v) !
+    "rm -f ./%s".format(v, v) !
 
     State.stateOps(state).reload
   }}

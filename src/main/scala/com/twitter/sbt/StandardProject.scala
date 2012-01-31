@@ -15,7 +15,6 @@ object StandardProject extends Plugin {
     PublishLocalWithMavenStyleBasePattern.newSettings,
     PublishSourcesAndJavadocs.newSettings,
     PackageDist.newSettings,
-    SubversionPublisher.newSettings,
     VersionManagement.newSettings,
     ReleaseManagement.newSettings
   )
