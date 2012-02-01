@@ -90,7 +90,7 @@ object SubversionPublisher extends Plugin {
               val resolver = new SvnResolver()
               resolver.setName("svn")
               resolver.setRepositoryRoot(repo)
-              resolver.addArtifactPattern(prefs.getProperty("pattern", "[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"))
+              resolver.addArtifactPattern(prefs.getProperty("pattern", Resolver.mavenStyleBasePattern)
               resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
               resolver.setUserName(username)
               resolver.setUserPassword(password)
