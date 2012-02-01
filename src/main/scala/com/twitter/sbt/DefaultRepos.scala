@@ -48,7 +48,9 @@ object DefaultRepos extends Plugin with Environmentalist {
     defaultReposProxyRootURI := Some("http://artifactory.local.twitter.com"),
     defaultReposIsProxyAvailable := environment.contains("SBT_TWITTER"),
     defaultReposProxyResolver <<= (defaultReposProxyRootURI) { root =>
-      Some("artifactory-all" at "%s/repo".format(root))
+      root map { r =>
+        "artifactory-all" at "%s/repo".format(r)
+      }
     },
     // default resolvers to use if no proxy is picked
     defaultReposDefaultResolvers := Seq(
