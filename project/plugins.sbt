@@ -8,4 +8,4 @@ libraryDependencies <+= (sbtVersion) { sv =>
 
 libraryDependencies += "ivysvn" % "ivysvn" % "2.1.0"
 
-addSbtPlugin("com.twitter" % "standard-project2" % "0.0.1")
+addSbtPlugin("com.twitter" % "standard-project2" % "0.0.2")
