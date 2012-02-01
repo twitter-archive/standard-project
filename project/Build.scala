@@ -17,7 +17,7 @@ object StandardProjectPlugin extends Build {
     organization := "com.twitter",
     name := "standard-project2",
     SubversionPublisher.subversionRepository := Some("https://svn.twitter.biz/maven-public"),
-    version := "0.0.3-SNAPSHOT",
+    version := "0.0.3",
     sbtPlugin := true,
     libraryDependencies ++= Seq (
       "ivysvn" % "ivysvn" % "2.1.0",
