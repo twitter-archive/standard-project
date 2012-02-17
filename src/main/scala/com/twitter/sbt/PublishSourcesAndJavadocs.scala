@@ -9,8 +9,8 @@ trait PublishSourcesAndJavadocs extends DefaultProject {
 
   override def packageDocsJar = defaultJarPath("-javadoc.jar")
   override def packageSrcJar= defaultJarPath("-sources.jar")
-  lazy val sourceArtifact = Artifact.sources(name)
-  lazy val docsArtifact = Artifact.javadoc(name)
+  lazy val sourceArtifact = Artifact.sources(artifactID)
+  lazy val docsArtifact = Artifact.javadoc(artifactID)
   override lazy val publish = super.publishAction dependsOn(packageDocs, packageSrc)
   override lazy val publishLocal = super.publishLocalAction dependsOn(packageDocs, packageSrc)
   override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
