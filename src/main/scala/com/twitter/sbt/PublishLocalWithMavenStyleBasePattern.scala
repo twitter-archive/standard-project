@@ -15,7 +15,9 @@ object PublishLocalWithMavenStyleBasePattern extends Plugin {
       lOpt match {
         case Some(l) => {
           val filtered = e.filter(r => r.name != "local")
-          filtered ++ Seq(l)
+	  val pList = ("${ivy.home}/local/" + Resolver.localBasePattern) :: Nil
+	  val oldDefault = FileRepository("sbt-local", Resolver.defaultFileConfiguration, Patterns(pList, pList, false))
+          Seq(l, oldDefault) ++ filtered
         }
         case _ => e
       }

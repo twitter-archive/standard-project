@@ -20,11 +20,11 @@ case class InlineableModuleID(moduleId: Option[ModuleID],
                               softLink: Option[String] = None,
                               dirOverride: Option[File] = None) {
 
-  def or(projDir: File) = copy(dir = Some(projDir))
+  def or(subproj: String) = copy(subproj = Some(subproj))
   /**
    * convenience method for specifying a subproject
    */
-  def in(dir: File) = copy(dir = Some(dir))
+  def in(dir: File) = copy(dir = Some(dir), softLink = Some(dir.getName), projName = Some(dir.getName))
   /**
    * convenience method for attaching an scm uri
    */
@@ -52,7 +52,7 @@ class Inlines (inlines: InlineableModuleID*) {
   def addDeps (p: Project): Project = (inlines.flatMap { inline =>
     inline.softLink flatMap { softLink =>
       if (file(softLink).exists) {
-        Some(symproj(file(softLink), inline.subproj))
+        Some(symproj(inline.dir.get, inline.subproj))
       } else {
         None
       }
@@ -86,25 +86,11 @@ class Inlines (inlines: InlineableModuleID*) {
 /**
  * settings, implicit from moduleid -> inlineablemoduleid, etc.
  */
-object Inlines extends Plugin {
+object InlinesPlugin extends Plugin {
   /**
    * settingkey to record our inlineablemoduleids
    */
-  val inlines = SettingKey[Seq[InlineableModuleID]]("inlines")
-  /**
-   * utility to build Inlines from an array of InlineableModuleIDs
-   */
-  def apply(inlines: InlineableModuleID*) = new Inlines(inlines:_*)
-  /**
-   * implicit from ModuleID to InlineableModuleID
-   */
-  implicit def moduleIdToInline(moduleId: ModuleID): InlineableModuleID = InlineableModuleID(Some(moduleId))
-}
-
-/**
- * Project utility for InlinedProject construction
- */
-object InlinedProject {
+  val inlines = SettingKey[Seq[InlineableModuleID]]("project-inlines")
 
   def makeDepDir(state: State, projName: String, dir: File, inlineable: InlineableModuleID): Boolean = {
     if (dir.exists) {
@@ -125,7 +111,7 @@ object InlinedProject {
    */
   def inline = Command.single("inline") { (state: State, v: String) => {
     val extracted = Project.extract(state)
-    val inlineables = extracted.get(Inlines.inlines)
+    val inlineables = extracted.get(InlinesPlugin.inlines)
     inlineables.find(_.softLink == Some(v)) match {
       case Some(inlineable) => {
         val stateOpt = for (dir <- inlineable.dir;
@@ -158,6 +144,28 @@ object InlinedProject {
     State.stateOps(state).reload
   }}
 
+  val newSettings = Seq(
+    inlines := Seq(),
+    commands ++= Seq(inline, outline)
+  )
+}
+
+object Inlines {
+  /**
+   * utility to build Inlines from an array of InlineableModuleIDs
+   */
+  def apply(inlines: InlineableModuleID*) = new Inlines(inlines:_*)
+  /**
+   * implicit from ModuleID to InlineableModuleID
+   */
+  implicit def moduleIdToInline(moduleId: ModuleID): InlineableModuleID = InlineableModuleID(Some(moduleId))
+}
+
+/**
+ * Project utility for InlinedProject construction
+ */
+object InlinedProject {
+
   /**
    * build a new project with optional inlines
    */
@@ -170,8 +178,8 @@ object InlinedProject {
             inlines: Seq[InlineableModuleID]): Project = {
     val inliners = Inlines(inlines:_*)
     inliners.addDeps(Project(id, base, aggregate, dependencies, delegates, settings, configurations))
-    .settings(libraryDependencies ++= inliners.libDeps,
-              commands ++= Seq(inline, outline),
-              Inlines.inlines := inlines)
+    .settings(
+      libraryDependencies ++= inliners.libDeps,
+      InlinesPlugin.inlines := inlines)
   }
 }
