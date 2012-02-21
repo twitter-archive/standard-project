@@ -1,3 +1,21 @@
+1.0.3
+-----
+release: 21 Feb 2012
+
+- fix "publish-local" to work with scala-build-specific jars (like "foo_2.9.1")
+
+1.0.2
+-----
+release: 27 Jan 2012
+
+- use SBT_PROXY_PUBLISH for publishing to a proxy repo
+
+1.0.1
+-----
+release: 27 Jan 2012
+
+- allow publishing to an artifactory repo
+
 1.0.0
 -----
 release: 24 Sep 2011
