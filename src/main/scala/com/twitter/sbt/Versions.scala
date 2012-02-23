@@ -104,8 +104,8 @@ object VersionManagement extends Plugin {
     import extracted._
     val base = extracted.get(Keys.baseDirectory)
     val ver = extracted.get(Keys.version)
-    val regexes = extracted.get(VersionManagement.versionRegexes)                                                   
-    val from = extracted.get(Keys.version)                                                   
+    val regexes = extracted.get(VersionManagement.versionRegexes)
+    val from = extracted.get(Keys.version)
     val newVersion = f(from) match {
       case Some(to) => {
         val files = (PathFinder(base / "project") ** "*.scala").get ++ Seq((base / "build.sbt"))
@@ -179,5 +179,5 @@ object VersionManagement extends Plugin {
     versionToSnapshot,
     versionToStable,
     versionSet))
-    
+
 }
