@@ -27,7 +27,7 @@ object PackageDist extends Plugin {
    * the task to actually build the zip file
    */
   val packageDist =
-    TaskKey[Unit]("package-dist", "package a distribution for the current project")
+    TaskKey[File]("package-dist", "package a distribution for the current project")
 
   /**
    * the name of our distribution
@@ -78,10 +78,22 @@ object PackageDist extends Plugin {
     TaskKey[Map[String, String]]("package-vars", "build a map of subtitutions for scripts")
 
   /**
+   * task to copy dependent jars from the source folder to dist, doing @VAR@ substitutions along the way
+   */
+  val packageDistCopyLibs =
+    TaskKey[Set[File]]("package-dist-copy-libs", "copy scripts into the package dist folder")
+
+  /**
    * task to copy scripts from the source folder to dist, doing @VAR@ substitutions along the way
    */
-  val packageCopyScripts =
-    TaskKey[Seq[File]]("package-copy-scripts", "copy scripts into the package dist folder")
+  val packageDistCopyScripts =
+    TaskKey[Set[File]]("package-dist-copy-scripts", "copy scripts into the package dist folder")
+
+  /**
+   * task to copy config files from the source folder to dist
+   */
+  val packageDistCopyConfig =
+    TaskKey[Set[File]]("package-dist-copy-config", "copy config files into the package dist folder")
 
   // utility to copy a directory tree to a new one
   def copyTree(
@@ -92,7 +104,7 @@ object PackageDist extends Plugin {
     srcOpt.flatMap { src =>
       destOpt.flatMap { dest =>
         val rebaser = Path.rebase(src, dest)
-        val allFiles = (PathFinder(src) ***).filter(!_.isDirectory).get
+        val allFiles = (PathFinder(src) ***).filter(!_.isDirectory).filter(p).get
         val copySet = allFiles.flatMap { f =>
           rebaser(f) map { rebased =>
             (f, rebased)
@@ -107,7 +119,7 @@ object PackageDist extends Plugin {
     exportJars := true,
     // write a classpath entry to the manifest
     packageOptions <+= (dependencyClasspath in Compile, mainClass) map { (cp, main) =>
-      val manifestClasspath = cp.map(_.data).map(f => "libs/" + f.getName).mkString(" ")
+      val manifestClasspath = cp.files.map(f => "libs/" + f.getName).mkString(" ")
       // not sure why, but Main-Class needs to be set explicitly here.
       val attrs = Seq(("Class-Path", manifestClasspath)) ++ main.map { ("Main-Class", _) }
       Package.ManifestAttributes(attrs: _*)
@@ -123,7 +135,7 @@ object PackageDist extends Plugin {
     packageDistDir <<= (baseDirectory, packageDistName) { (b, n) => b / "dist" / n },
     packageDistConfigPath <<= (baseDirectory) { b => Some(b / "config") },
     packageDistConfigOutputPath <<= (packageDistDir) { d => Some(d / "config") },
-    packageDistScriptsPath <<= (baseDirectory) {b => Some(b / "src" / "scripts") },
+    packageDistScriptsPath <<= (baseDirectory) { b => Some(b / "src" / "scripts") },
     packageDistScriptsOutputPath <<= (packageDistDir) { d => Some(d / "scripts") },
 
     // if release, then name it the version. otherwise the first 8 characters of the sha
@@ -147,11 +159,11 @@ object PackageDist extends Plugin {
       scalaVersion,
       gitProjectSha
     ) map { (rcp, tcp, exports, crossPaths, name, version, scalaVersion, sha) =>
-      val distClasspath = rcp.map("${DIST_HOME}/libs/" + _.data.getName) ++
-        exports.map("${DIST_HOME}/" + _.data.getName)
+      val distClasspath = rcp.files.map("${DIST_HOME}/libs/" + _.getName) ++
+        exports.files.map("${DIST_HOME}/" + _.getName)
       Map(
-        "CLASSPATH" -> rcp.map(_.data).mkString(":"),
-        "TEST_CLASSPATH" -> tcp.map(_.data).mkString(":"),
+        "CLASSPATH" -> rcp.files.mkString(":"),
+        "TEST_CLASSPATH" -> tcp.files.mkString(":"),
         "DIST_CLASSPATH" -> distClasspath.mkString(":"),
         "DIST_NAME" -> (if (crossPaths) (name + "_" + scalaVersion) else name),
         "VERSION" -> version,
@@ -159,7 +171,7 @@ object PackageDist extends Plugin {
       )
     },
 
-    packageCopyScripts <<= (
+    packageDistCopyScripts <<= (
       packageVars,
       packageDistScriptsPath,
       packageDistScriptsOutputPath
@@ -169,46 +181,50 @@ object PackageDist extends Plugin {
         FileFilter.filter(source, destination, vars)
         List("chmod", "+x", destination.absolutePath.toString) !!;
         destination
-      }
+      }.toSet
+    },
+
+    packageDistCopyConfig <<= (
+      packageDistConfigPath,
+      packageDistConfigOutputPath
+    ) map { (conf, confOut) =>
+      // skip anything matching "/target/", which are probably cached pre-compiled config files.
+      val fileset = copyTree(conf, confOut, { f => !(f.getPath contains "/target/") })
+      IO.copy(fileset)
+    },
+
+    packageDistCopyLibs <<= (
+      dependencyClasspath in Runtime,
+      exportedProducts in Compile,
+      packageDistDir
+    ) map { (cp, products, dest) =>
+      val jarFiles = cp.files.filter(f => !products.files.contains(f))
+      val jarDest = dest / "libs"
+      jarDest.mkdirs()
+      IO.copy(jarFiles.map { f => (f, jarDest / f.getName) })
     },
 
     // package all the things
     packageDist <<= (
       dependencyClasspath in Runtime,
       exportedProducts in Compile,
-      packageCopyScripts,
+      packageDistCopyLibs,
+      packageDistCopyScripts,
+      packageDistCopyConfig,
       packageDistDir,
-      packageDistConfigPath,
-      packageDistConfigOutputPath,
-      packageDistScriptsOutputPath,
+      packageDistName,
       packageDistZipName
-    ) map { (cp, exp, _, dest, conf, confOut, scriptOut, zipName) =>
-      // build up lib directory
-      val jarFiles = cp.map(_.data).filter(f => !exp.map(_.data).contains(f))
-      val jarDest = dest / "libs"
-      if (!jarDest.exists) {
-        jarDest.mkdirs()
-      }
-      val copySet = jarFiles.map { f =>
-        (f, jarDest / f.getName)
-      }
-      IO.copy(copySet)
-
-      // copy all of scripts and confs (rebased to dist directory)
-      // FIXME do not copy config/target/
-      IO.copy(copyTree(conf, confOut))
-
+    ) map { (cp, exp, libs, scripts, configs, dest, distName, zipName) =>
       // copy all our generated "products" (i.e. "the jar")
-      val prodCopySet = exp.map(p => (p.data, dest / p.data.getName))
-      val productsToPackage = prodCopySet.map(_._2)
-      IO.copy(prodCopySet)
+      val prodCopySet = exp.files.map(p => (p, dest / p.getName))
+      val productsToPackage = IO.copy(prodCopySet)
       // build the zip
-      val filesToPackage = productsToPackage ++
-         confOut.map { confOut => (PathFinder(confOut) ***).get}.getOrElse(Seq()) ++
-      scriptOut.map { scriptOut => (PathFinder(scriptOut) ***).get}.getOrElse(Seq()) ++
-         (PathFinder(dest / "libs") ***).get
+      val filesToPackage = productsToPackage ++ configs ++ scripts ++ libs
       val zipRebaser = Path.rebase(dest, "")
-      IO.zip(filesToPackage.map(f => (f, zipRebaser(f).get)), dest / zipName)
+      val zipFile = dest / zipName
+      IO.zip(filesToPackage.map(f => (f, zipRebaser(f).get)), zipFile)
+      zipFile
     }
   )
 }
+
