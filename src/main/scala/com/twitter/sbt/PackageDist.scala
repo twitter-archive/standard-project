@@ -14,65 +14,81 @@ object PackageDist extends Plugin {
   /**
    * flag for determining whether we name this with a version or a sha
    */
-  val packageDistReleaseBuild = SettingKey[Boolean]("package-dist-release-build", "is this a release build")
+  val packageDistReleaseBuild =
+    SettingKey[Boolean]("package-dist-release-build", "is this a release build")
 
   /**
    * where to build and stick the dist
    */
-  val packageDistDir = SettingKey[File]("package-dist-dir", "the directory to package dists into")
+  val packageDistDir =
+    SettingKey[File]("package-dist-dir", "the directory to package dists into")
 
   /**
    * the task to actually build the zip file
    */
-  val packageDist = TaskKey[Unit]("package-dist", "package a distribution for the current project")
+  val packageDist =
+    TaskKey[Unit]("package-dist", "package a distribution for the current project")
 
   /**
    * the name of our distribution
    */
-  val packageDistName = SettingKey[String]("package-dist-name", "name of our distribution")
+  val packageDistName =
+    SettingKey[String]("package-dist-name", "name of our distribution")
 
   /**
    * where to find config files (if any)
    */
-  val packageDistConfigPath = SettingKey[Option[File]]("package-dist-config-path", "location of config files (if any)")
+  val packageDistConfigPath =
+    SettingKey[Option[File]]("package-dist-config-path", "location of config files (if any)")
 
   /**
    * where to write configs within the zip
    */
-  val packageDistConfigOutputPath = SettingKey[Option[File]]("package-dist-config-output-path", "location of config output path")
+  val packageDistConfigOutputPath =
+    SettingKey[Option[File]]("package-dist-config-output-path", "location of config output path")
 
   /**
    * where to find script files (if any)
    */
-  val packageDistScriptsPath = SettingKey[Option[File]]("package-dist-scripts-path", "location of scripts (if any)")
+  val packageDistScriptsPath =
+    SettingKey[Option[File]]("package-dist-scripts-path", "location of scripts (if any)")
 
   /**
    * where to write script files in the zip
    */
-  val packageDistScriptsOutputPath = SettingKey[Option[File]]("package-dist-scripts-output-path", "location of scripts output path")
+  val packageDistScriptsOutputPath =
+    SettingKey[Option[File]]("package-dist-scripts-output-path", "location of scripts output path")
 
   /**
    * the name of our zip
    */
-  val packageDistZipName = TaskKey[String]("package-dist-zip-name", "name of packaged zip file")
+  val packageDistZipName =
+    TaskKey[String]("package-dist-zip-name", "name of packaged zip file")
 
   /**
    * task to clean up the dist directory
    */
-  val packageDistClean = TaskKey[Unit]("package-dist-clean", "clean distribution artifacts")
+  val packageDistClean =
+    TaskKey[Unit]("package-dist-clean", "clean distribution artifacts")
 
   /**
    * task to generate the map of substitutions to perform on scripts as they're copied
    */
-  val packageVars = TaskKey[Map[String, String]]("package-vars", "build a map of subtitutions for scripts")
+  val packageVars =
+    TaskKey[Map[String, String]]("package-vars", "build a map of subtitutions for scripts")
 
   /**
    * task to copy scripts from the source folder to dist, doing @VAR@ substitutions along the way
    */
-  val packageCopyScripts = TaskKey[Unit]("package-copy-scripts", "copy scripts into the package dist folder")
+  val packageCopyScripts =
+    TaskKey[Seq[File]]("package-copy-scripts", "copy scripts into the package dist folder")
 
   // utility to copy a directory tree to a new one
-  def copyTree(srcOpt: Option[File], destOpt: Option[File], p: (File => Boolean) = { _ => true }): Seq[(File, File)] = {
+  def copyTree(
+    srcOpt: Option[File],
+    destOpt: Option[File],
+    p: (File => Boolean) = { _ => true }
+  ): Seq[(File, File)] = {
     srcOpt.flatMap { src =>
       destOpt.flatMap { dest =>
         val rebaser = Path.rebase(src, dest)
@@ -109,8 +125,14 @@ object PackageDist extends Plugin {
     packageDistConfigOutputPath <<= (packageDistDir) { d => Some(d / "config") },
     packageDistScriptsPath <<= (baseDirectory) {b => Some(b / "src" / "scripts") },
     packageDistScriptsOutputPath <<= (packageDistDir) { d => Some(d / "scripts") },
+
     // if release, then name it the version. otherwise the first 8 characters of the sha
-    packageDistZipName <<= (packageDistReleaseBuild, gitProjectSha, name, version) map { (r, g, n, v) =>
+    packageDistZipName <<= (
+      packageDistReleaseBuild,
+      gitProjectSha,
+      name,
+      version
+    ) map { (r, g, n, v) =>
       val revName = g.map(_.substring(0, 8)).getOrElse(v)
       "%s-%s.zip".format(n, if (r) v else revName)
     },
@@ -124,38 +146,43 @@ object PackageDist extends Plugin {
       version,
       scalaVersion,
       gitProjectSha
-    ) map { (runtimeClasspath, testClasspath, exports, crossPaths, name, version, scalaVersion, gitProjectSha) =>
-      val distClasspath = runtimeClasspath.map("${DIST_HOME}/libs/" + _.data.getName) ++
+    ) map { (rcp, tcp, exports, crossPaths, name, version, scalaVersion, sha) =>
+      val distClasspath = rcp.map("${DIST_HOME}/libs/" + _.data.getName) ++
         exports.map("${DIST_HOME}/" + _.data.getName)
       Map(
-        "CLASSPATH" -> runtimeClasspath.map(_.data).mkString(":"),
-        "TEST_CLASSPATH" -> testClasspath.map(_.data).mkString(":"),
+        "CLASSPATH" -> rcp.map(_.data).mkString(":"),
+        "TEST_CLASSPATH" -> tcp.map(_.data).mkString(":"),
         "DIST_CLASSPATH" -> distClasspath.mkString(":"),
         "DIST_NAME" -> (if (crossPaths) (name + "_" + scalaVersion) else name),
         "VERSION" -> version,
-        "REVISION" -> gitProjectSha.getOrElse("")
+        "REVISION" -> sha.getOrElse("")
       )
     },
 
-    packageCopyScripts <<= (packageVars,
-                     packageDistScriptsPath,
-                     packageDistScriptsOutputPath) map { (vars, script, scriptOut) =>
-      copyTree(script, scriptOut).foreach { case (source, destination) =>
+    packageCopyScripts <<= (
+      packageVars,
+      packageDistScriptsPath,
+      packageDistScriptsOutputPath
+    ) map { (vars, script, scriptOut) =>
+      copyTree(script, scriptOut).map { case (source, destination) =>
         destination.getParentFile().mkdirs()
         FileFilter.filter(source, destination, vars)
-        List("chmod", "+x", destination.absolutePath.toString) !!
+        List("chmod", "+x", destination.absolutePath.toString) !!;
+        destination
       }
     },
 
     // package all the things
-    packageDist <<= (dependencyClasspath in Runtime,
-                     exportedProducts in Compile,
-                     packageCopyScripts,
-                     packageDistDir,
-                     packageDistConfigPath,
-                     packageDistConfigOutputPath,
-                     packageDistScriptsOutputPath,
-                     packageDistZipName) map { (cp, exp, _, dest, conf, confOut, scriptOut, zipName) =>
+    packageDist <<= (
+      dependencyClasspath in Runtime,
+      exportedProducts in Compile,
+      packageCopyScripts,
+      packageDistDir,
+      packageDistConfigPath,
+      packageDistConfigOutputPath,
+      packageDistScriptsOutputPath,
+      packageDistZipName
+    ) map { (cp, exp, _, dest, conf, confOut, scriptOut, zipName) =>
       // build up lib directory
       val jarFiles = cp.map(_.data).filter(f => !exp.map(_.data).contains(f))
       val jarDest = dest / "libs"
