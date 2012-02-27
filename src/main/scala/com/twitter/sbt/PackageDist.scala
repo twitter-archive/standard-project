@@ -66,6 +66,12 @@ object PackageDist extends Plugin {
     TaskKey[String]("package-dist-zip-name", "name of packaged zip file")
 
   /**
+   * where to rebase files inside the zip
+   */
+  val packageDistZipPath =
+    TaskKey[String]("package-dist-zip-path", "path of files inside the packaged zip file")
+
+  /**
    * task to clean up the dist directory
    */
   val packageDistClean =
@@ -95,6 +101,18 @@ object PackageDist extends Plugin {
   val packageDistCopyConfig =
     TaskKey[Set[File]]("package-dist-copy-config", "copy config files into the package dist folder")
 
+  /**
+   * task to copy exported jars from the target folder to dist
+   */
+  val packageDistCopyJars =
+    TaskKey[Set[File]]("package-dist-copy-jars", "copy exported files into the package dist folder")
+
+  /**
+   * task to copy all dist-ready files to dist
+   */
+  val packageDistCopy =
+    TaskKey[Set[File]]("package-dist-copy", "copy all dist files into the package dist folder")
+
   // utility to copy a directory tree to a new one
   def copyTree(
     srcOpt: Option[File],
@@ -117,6 +135,16 @@ object PackageDist extends Plugin {
 
   val newSettings = Seq(
     exportJars := true,
+
+    // export source and docs
+    (exportedProducts in Compile) <<= (
+      exportedProducts in Compile,
+      packageSrc in Compile,
+      packageDoc in Compile
+    ) map { (exports, src, doc) =>
+      exports ++ Seq(Attributed.blank(src), Attributed.blank(doc))
+    },
+
     // write a classpath entry to the manifest
     packageOptions <+= (dependencyClasspath in Compile, mainClass) map { (cp, main) =>
       val manifestClasspath = cp.files.map(f => "libs/" + f.getName).mkString(" ")
@@ -137,6 +165,13 @@ object PackageDist extends Plugin {
     packageDistConfigOutputPath <<= (packageDistDir) { d => Some(d / "config") },
     packageDistScriptsPath <<= (baseDirectory) { b => Some(b / "src" / "scripts") },
     packageDistScriptsOutputPath <<= (packageDistDir) { d => Some(d / "scripts") },
+
+    packageDistZipPath <<= (
+      packageDistReleaseBuild,
+      packageDistName
+    ) map { (release, name) =>
+      if (release) name else ""
+    },
 
     // if release, then name it the version. otherwise the first 8 characters of the sha
     packageDistZipName <<= (
@@ -204,27 +239,36 @@ object PackageDist extends Plugin {
       IO.copy(jarFiles.map { f => (f, jarDest / f.getName) })
     },
 
-    // package all the things
-    packageDist <<= (
-      dependencyClasspath in Runtime,
+    // copy all our generated "products" (i.e. "the jars")
+    packageDistCopyJars <<= (
       exportedProducts in Compile,
+      packageDistDir
+    ) map { (products, dest) =>
+      IO.copy(products.files.map(p => (p, dest / p.getName)))
+    },
+
+    packageDistCopy <<= (
       packageDistCopyLibs,
       packageDistCopyScripts,
       packageDistCopyConfig,
+      packageDistCopyJars
+    ) map { (libs, scripts, config, jars) =>
+      libs ++ scripts ++ config ++ jars
+    },
+
+    // package all the things
+    packageDist <<= (
+      packageDistCopy,
       packageDistDir,
       packageDistName,
+      packageDistZipPath,
       packageDistZipName
-    ) map { (cp, exp, libs, scripts, configs, dest, distName, zipName) =>
-      // copy all our generated "products" (i.e. "the jar")
-      val prodCopySet = exp.files.map(p => (p, dest / p.getName))
-      val productsToPackage = IO.copy(prodCopySet)
+    ) map { (files, dest, distName, zipPath, zipName) =>
       // build the zip
-      val filesToPackage = productsToPackage ++ configs ++ scripts ++ libs
-      val zipRebaser = Path.rebase(dest, "")
+      val zipRebaser = Path.rebase(dest, zipPath)
       val zipFile = dest / zipName
-      IO.zip(filesToPackage.map(f => (f, zipRebaser(f).get)), zipFile)
+      IO.zip(files.map(f => (f, zipRebaser(f).get)), zipFile)
       zipFile
     }
   )
 }
-
