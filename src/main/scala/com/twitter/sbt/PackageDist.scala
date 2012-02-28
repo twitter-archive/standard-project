@@ -1,5 +1,6 @@
 package com.twitter.sbt
 
+import java.util.regex.Pattern
 import sbt._
 import Keys._
 
@@ -95,6 +96,9 @@ object PackageDist extends Plugin {
   val packageDistCopyScripts =
     TaskKey[Set[File]]("package-dist-copy-scripts", "copy scripts into the package dist folder")
 
+  val packageDistConfigFiles =
+    TaskKey[Set[File]]("package-dist-config-files", "config files to package with the server")
+
   /**
    * task to copy config files from the source folder to dist
    */
@@ -113,24 +117,34 @@ object PackageDist extends Plugin {
   val packageDistCopy =
     TaskKey[Set[File]]("package-dist-copy", "copy all dist files into the package dist folder")
 
+  // validate config files
+  val packageDistConfigFilesValidationRegex =
+    SettingKey[Option[String]](
+      "package-dist-config-files-validation-regex",
+      "regex to match config files against, if you would like package-time validation"
+    )
+
+  val packageDistValidateConfigFiles =
+    TaskKey[Set[File]]("package-dist-validate-config-files", "validate config files")
+
   // utility to copy a directory tree to a new one
   def copyTree(
     srcOpt: Option[File],
     destOpt: Option[File],
-    p: (File => Boolean) = { _ => true }
-  ): Seq[(File, File)] = {
+    selectedFiles: Option[Set[File]] = None
+  ): Set[(File, File)] = {
     srcOpt.flatMap { src =>
-      destOpt.flatMap { dest =>
+      destOpt.map { dest =>
         val rebaser = Path.rebase(src, dest)
-        val allFiles = (PathFinder(src) ***).filter(!_.isDirectory).filter(p).get
-        val copySet = allFiles.flatMap { f =>
+        selectedFiles.getOrElse {
+          (PathFinder(src) ***).filter(!_.isDirectory).get
+        }.flatMap { f =>
           rebaser(f) map { rebased =>
             (f, rebased)
           }
         }
-        Some(copySet)
       }
-    }.getOrElse(Seq())
+    }.getOrElse(Seq()).toSet
   }
 
   val newSettings = Seq(
@@ -166,6 +180,7 @@ object PackageDist extends Plugin {
     packageDistScriptsPath <<= (baseDirectory) { b => Some(b / "src" / "scripts") },
     packageDistScriptsOutputPath <<= (packageDistDir) { d => Some(d / "scripts") },
 
+    // for releases, default to putting the zipfile contents inside a subfolder.
     packageDistZipPath <<= (
       packageDistReleaseBuild,
       packageDistName
@@ -216,16 +231,15 @@ object PackageDist extends Plugin {
         FileFilter.filter(source, destination, vars)
         List("chmod", "+x", destination.absolutePath.toString) !!;
         destination
-      }.toSet
+      }
     },
 
     packageDistCopyConfig <<= (
       packageDistConfigPath,
-      packageDistConfigOutputPath
-    ) map { (conf, confOut) =>
-      // skip anything matching "/target/", which are probably cached pre-compiled config files.
-      val fileset = copyTree(conf, confOut, { f => !(f.getPath contains "/target/") })
-      IO.copy(fileset)
+      packageDistConfigOutputPath,
+      packageDistConfigFiles
+    ) map { (conf, confOut, files) =>
+      IO.copy(copyTree(conf, confOut, Some(files)))
     },
 
     packageDistCopyLibs <<= (
@@ -256,14 +270,50 @@ object PackageDist extends Plugin {
       libs ++ scripts ++ config ++ jars
     },
 
+    packageDistConfigFiles <<= (
+      packageDistConfigPath
+    ) map { (configPath) =>
+      configPath.map { p =>
+        (PathFinder(p) ***).filter { f =>
+          // skip anything matching "/target/", which are probably cached pre-compiled config files.
+          !f.isDirectory && !(f.getPath contains "/target/")
+        }.get
+      }.getOrElse(Seq()).toSet
+    },
+
+    packageDistConfigFilesValidationRegex := None,
+
+    packageDistValidateConfigFiles <<= (
+      streams,
+      packageDistCopyJars,
+      packageDistConfigFilesValidationRegex,
+      packageDistCopyConfig,
+      packageDistCopyLibs
+    ) map { (s, jars, regex, files, _) =>
+      val jar = jars.filter { f =>
+        !f.getName.contains("-sources") && !f.getName.contains("-javadoc")
+      }.head
+      files.filter { file =>
+        regex.map { r => Pattern.matches(r, file.getName) }.getOrElse { false }
+      }.map { file =>
+        s.log.info("Validating config file: " + file.absolutePath)
+        val args = List("java", "-jar", jar.absolutePath, "-f", file.absolutePath, "--validate")
+        if (Process(args).run().exitValue != 0) {
+          throw new Exception("Failed to validate config file: " + file.toString)
+        }
+        file
+      }
+    },
+
     // package all the things
     packageDist <<= (
       packageDistCopy,
+      packageDistValidateConfigFiles,
       packageDistDir,
       packageDistName,
       packageDistZipPath,
       packageDistZipName
-    ) map { (files, dest, distName, zipPath, zipName) =>
+    ) map { (files, _, dest, distName, zipPath, zipName) =>
       // build the zip
       val zipRebaser = Path.rebase(dest, zipPath)
       val zipFile = dest / zipName
