@@ -30,7 +30,7 @@ object ReleaseManagement extends Plugin with GitHelpers {
    */
   def releasePublish = Command.command(
     "release-publish",
-    "publish and tag a release (with 'publish') by removing SNAPSHOT from the verison and bumping",
+    "publish and tag a release (with 'publish') by removing SNAPSHOT from the version and bumping",
     ""
   ) { (state: State) =>
     val extracted = Project.extract(state)
