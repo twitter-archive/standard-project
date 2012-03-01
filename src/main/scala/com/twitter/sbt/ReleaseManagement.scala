@@ -59,23 +59,36 @@ object ReleaseManagement extends Plugin with GitHelpers {
   }
 
   val newSettings = Seq(
-    releasePublishTasks := Seq("release-ready", "version-to-stable", "publish-local", "publish", "git-commit", "git-tag", "version-bump-patch", "version-to-snapshot", "git-commit"),
+    releasePublishTasks := Seq(
+      "release-ready",
+      "version-to-stable",
+      "publish-local",
+      "publish",
+      "git-commit",
+      "git-tag",
+      "version-bump-patch",
+      "version-to-snapshot",
+      "git-commit"
+    ),
+
     releaseReady <<= (streams, version, libraryDependencies) map { (out, v, deps) =>
-      val tags = ("git tag -l grep + %s".format(v) !!).trim
+      val stableVersion = if (v endsWith "-SNAPSHOT") v.slice(0, v.size - 9) else v
+      val tags = ("git tag -l *version?%s".format(stableVersion) !!).trim
+
       // we don't release dirty trees
       if (!gitIsCleanWorkingTree) {
-        out.log.error("Working directory is not clean")
+        out.log.error("Working directory is not clean.")
         false
       } else if (deps.exists(_.revision.contains("SNAPSHOT"))) {
         // we don't release with snapshot dependencies
-        out.log.error("Build has snapshotted depndencies")
+        out.log.error("Build has snapshotted depndencies.")
         false
-      } else if (tags.contains(v) && !tags.contains("SNAPSHOT")) {
+      } else if (tags.contains(stableVersion)) {
         // we don't double-release
-        out.log.error("Cannot tag release version %s. Tag already exists".format(v))
+        out.log.error("Cannot tag release version %s: tag already exists.".format(stableVersion))
         false
       } else {
-        out.log.info("Current project is ok for release")
+        out.log.info("Current project is ok for release.")
         true
       }
     }
