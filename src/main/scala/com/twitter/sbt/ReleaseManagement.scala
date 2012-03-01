@@ -11,18 +11,28 @@ object ReleaseManagement extends Plugin with GitHelpers {
 
   /**
    * is the current repo ready for a release
-   */ 
-  val releaseReady = TaskKey[Boolean]("release-ready", "checks to see if current source tree and project can be published")
+   */
+  val releaseReady = TaskKey[Boolean](
+    "release-ready",
+    "checks to see if current source tree and project can be published"
+  )
 
   /**
    * an ordered set of tasks/commands that need to be run for the publish
    */
-  val releasePublishTasks = SettingKey[Seq[String]]("release-publish-tasks", "a list of tasks to execute (in order) for publishing a release")
+  val releasePublishTasks = SettingKey[Seq[String]](
+    "release-publish-tasks",
+    "a list of tasks to execute (in order) for publishing a release"
+  )
 
   /**
    * checks release-ready, and if the answer is yes, runs release-publish-tasks
    */
-  def releasePublish = Command.command("release-publish", Help.empty) { (state: State) =>
+  def releasePublish = Command.command(
+    "release-publish",
+    "publish and tag a release (with 'publish') by removing SNAPSHOT from the verison and bumping",
+    ""
+  ) { (state: State) =>
     val extracted = Project.extract(state)
     import extracted._
     Project.runTask(releaseReady, state) match {
@@ -37,7 +47,7 @@ object ReleaseManagement extends Plugin with GitHelpers {
         state.fail
       }
       case Some((s, Value(false))) => {
-        state.log.error("Stopping release")
+        state.log.error("Stopping release.")
         state.fail
       }
       case Some((s, Value(true))) => {
@@ -75,5 +85,4 @@ object ReleaseManagement extends Plugin with GitHelpers {
    * make release-publish available to projects
    */
   override lazy val settings = Seq(commands += releasePublish)
-
 }
