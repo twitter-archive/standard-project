@@ -297,8 +297,7 @@ object PackageDist extends Plugin {
         regex.map { r => Pattern.matches(r, file.getName) }.getOrElse { false }
       }.map { file =>
         s.log.info("Validating config file: " + file.absolutePath)
-        val args = List("java", "-jar", jar.absolutePath, "-f", file.absolutePath, "--validate")
-        if (Process(args).run(s.log).exitValue != 0) {
+        if ((List("java", "-jar", jar.absolutePath, "-f", file.absolutePath, "--validate")!) != 0) {
           throw new Exception("Failed to validate config file: " + file.toString)
         }
         file
