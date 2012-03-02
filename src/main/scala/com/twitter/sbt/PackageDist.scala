@@ -256,9 +256,10 @@ object PackageDist extends Plugin {
     // copy all our generated "products" (i.e. "the jars")
     packageDistCopyJars <<= (
       exportedProducts in Compile,
+      exportedProducts in Test,
       packageDistDir
-    ) map { (products, dest) =>
-      IO.copy(products.files.map(p => (p, dest / p.getName)))
+    ) map { (products, testProducts, dest) =>
+      IO.copy((products ++ testProducts).files.map(p => (p, dest / p.getName)))
     },
 
     packageDistCopy <<= (
@@ -297,8 +298,7 @@ object PackageDist extends Plugin {
         regex.map { r => Pattern.matches(r, file.getName) }.getOrElse { false }
       }.map { file =>
         s.log.info("Validating config file: " + file.absolutePath)
-        val args = List("java", "-jar", jar.absolutePath, "-f", file.absolutePath, "--validate")
-        if (Process(args).run().exitValue != 0) {
+        if ((List("java", "-jar", jar.absolutePath, "-f", file.absolutePath, "--validate")!) != 0) {
           throw new Exception("Failed to validate config file: " + file.toString)
         }
         file
@@ -307,13 +307,14 @@ object PackageDist extends Plugin {
 
     // package all the things
     packageDist <<= (
+      test in Test,
       packageDistCopy,
       packageDistValidateConfigFiles,
       packageDistDir,
       packageDistName,
       packageDistZipPath,
       packageDistZipName
-    ) map { (files, _, dest, distName, zipPath, zipName) =>
+    ) map { (_, files, _, dest, distName, zipPath, zipName) =>
       // build the zip
       val zipRebaser = Path.rebase(dest, zipPath)
       val zipFile = dest / zipName

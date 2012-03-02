@@ -11,18 +11,28 @@ object ReleaseManagement extends Plugin with GitHelpers {
 
   /**
    * is the current repo ready for a release
-   */ 
-  val releaseReady = TaskKey[Boolean]("release-ready", "checks to see if current source tree and project can be published")
+   */
+  val releaseReady = TaskKey[Boolean](
+    "release-ready",
+    "checks to see if current source tree and project can be published"
+  )
 
   /**
    * an ordered set of tasks/commands that need to be run for the publish
    */
-  val releasePublishTasks = SettingKey[Seq[String]]("release-publish-tasks", "a list of tasks to execute (in order) for publishing a release")
+  val releasePublishTasks = SettingKey[Seq[String]](
+    "release-publish-tasks",
+    "a list of tasks to execute (in order) for publishing a release"
+  )
 
   /**
    * checks release-ready, and if the answer is yes, runs release-publish-tasks
    */
-  def releasePublish = Command.command("release-publish", Help.empty) { (state: State) =>
+  def releasePublish = Command.command(
+    "release-publish",
+    "publish and tag a release (with 'publish') by removing SNAPSHOT from the version and bumping",
+    ""
+  ) { (state: State) =>
     val extracted = Project.extract(state)
     import extracted._
     Project.runTask(releaseReady, state) match {
@@ -37,7 +47,7 @@ object ReleaseManagement extends Plugin with GitHelpers {
         state.fail
       }
       case Some((s, Value(false))) => {
-        state.log.error("Stopping release")
+        state.log.error("Stopping release.")
         state.fail
       }
       case Some((s, Value(true))) => {
@@ -49,23 +59,36 @@ object ReleaseManagement extends Plugin with GitHelpers {
   }
 
   val newSettings = Seq(
-    releasePublishTasks := Seq("release-ready", "version-to-stable", "publish-local", "publish", "git-commit", "git-tag", "version-bump-patch", "version-to-snapshot", "git-commit"),
+    releasePublishTasks := Seq(
+      "release-ready",
+      "version-to-stable",
+      "publish-local",
+      "publish",
+      "git-commit",
+      "git-tag",
+      "version-bump-patch",
+      "version-to-snapshot",
+      "git-commit"
+    ),
+
     releaseReady <<= (streams, version, libraryDependencies) map { (out, v, deps) =>
-      val tags = ("git tag -l grep + %s".format(v) !!).trim
+      val stableVersion = if (v endsWith "-SNAPSHOT") v.slice(0, v.size - 9) else v
+      val tags = ("git tag -l *version?%s".format(stableVersion) !!).trim
+
       // we don't release dirty trees
       if (!gitIsCleanWorkingTree) {
-        out.log.error("Working directory is not clean")
+        out.log.error("Working directory is not clean.")
         false
       } else if (deps.exists(_.revision.contains("SNAPSHOT"))) {
         // we don't release with snapshot dependencies
-        out.log.error("Build has snapshotted depndencies")
+        out.log.error("Build has snapshotted depndencies.")
         false
-      } else if (tags.contains(v) && !tags.contains("SNAPSHOT")) {
+      } else if (tags.contains(stableVersion)) {
         // we don't double-release
-        out.log.error("Cannot tag release version %s. Tag already exists".format(v))
+        out.log.error("Cannot tag release version %s: tag already exists.".format(stableVersion))
         false
       } else {
-        out.log.info("Current project is ok for release")
+        out.log.info("Current project is ok for release.")
         true
       }
     }
@@ -75,5 +98,4 @@ object ReleaseManagement extends Plugin with GitHelpers {
    * make release-publish available to projects
    */
   override lazy val settings = Seq(commands += releasePublish)
-
 }

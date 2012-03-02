@@ -9,33 +9,39 @@ import java.io.{File, FileReader}
 import java.util.Properties
 
 /**
- * support subversion resolvers
+ * Support publishing to a subversion repo, using ivy-svn.
+ * It's a dirty job but someone's gotta do it.
  */
 object SubversionPublisher extends Plugin {
-  /**
-   * a file that contains your username and password
-   */
-  val subversionPrefsFile = SettingKey[Option[File]]("subversion-prefs-file", "preferences file for subversion publisher")
-  /**
-   * the repo to publish to
-   */
-  val subversionRepository = SettingKey[Option[String]]("subversion-repository", "subversion repo to publish artifacts to")
-  /**
-   * svn user if you want to override another way than the prefs file
-   */
-  val subversionUser = SettingKey[Option[String]]("subversion-user", "subversion username. usually read from subversion-prefs-file")
-  /**
-   * svn password if you want to override another way than the prefs file
-   */
-  val subversionPassword = SettingKey[Option[String]]("subversion-password", "subversion password. usually read from subversion-prefs-file")
-  /**
-   * the loaded prefs file, or your override
-   */
-  val subversionProperties = SettingKey[Option[Properties]]("subversion-properties", "loaded subversion preferences")
-  /**
-   * the svn url to publish to
-   */
-  val subversionPublishTo = SettingKey[Option[Resolver]]("subversion-publish-to", "subversion resolver to publish to")
+  val subversionPrefsFile = SettingKey[Option[File]](
+    "subversion-prefs-file",
+    "preferences file for subversion publisher (contating username and password)"
+  )
+
+  val subversionRepository = SettingKey[Option[String]](
+    "subversion-repository",
+    "subversion repo to publish artifacts to"
+  )
+
+  val subversionUsername = SettingKey[Option[String]](
+    "subversion-username",
+    "login username for the subversion repo (read from subversion-prefs-file by default)"
+  )
+
+  val subversionPassword = SettingKey[Option[String]](
+    "subversion-password",
+    "login password for the subversion repo (read from subversion-prefs-file by default)"
+  )
+
+  val subversionProperties = SettingKey[Option[Properties]](
+    "subversion-properties",
+    "properties loaded from subversion-prefs-file"
+  )
+
+  val subversionResolver = SettingKey[Option[Resolver]](
+    "subversion-resolver",
+    "ivy resolver object for publishing (usually built by this plugin)"
+  )
 
   /**
    * given an optional properties object and a key, return a value if it exists
@@ -78,11 +84,16 @@ object SubversionPublisher extends Plugin {
       }
     },
     subversionRepository := None,
-    subversionUser <<= (subversionProperties) { propsOpt => mapPropOpt(propsOpt, "username") },
+    subversionUsername <<= (subversionProperties) { propsOpt => mapPropOpt(propsOpt, "username") },
     subversionPassword <<= (subversionProperties) { propsOpt => mapPropOpt(propsOpt, "password") },
+
     // make our resolver
-    subversionPublishTo <<= (subversionUser, subversionPassword, subversionRepository, subversionProperties) {
-      (userOpt, passwordOpt, repoOpt, svnProps) =>
+    subversionResolver <<= (
+      subversionUsername,
+      subversionPassword,
+      subversionRepository,
+      subversionProperties
+    ) { (userOpt, passwordOpt, repoOpt, svnProps) =>
       val resolverOpt: Option[Resolver] = userOpt flatMap { username =>
         passwordOpt flatMap { password =>
           repoOpt flatMap {repo =>
@@ -91,7 +102,7 @@ object SubversionPublisher extends Plugin {
               resolver.setName("svn")
               resolver.setRepositoryRoot(repo)
               resolver.addArtifactPattern(prefs.getProperty("pattern", Resolver.mavenStyleBasePattern))
-              resolver.setM2compatible(java.lang.Boolean.parseBoolean(prefs.getProperty("m2Compatible", "true")))
+              resolver.setM2compatible(prefs.getProperty("m2Compatible", "true") == "true")
               resolver.setUserName(username)
               resolver.setUserPassword(password)
               resolver.setBinaryDiff("true")
@@ -104,6 +115,7 @@ object SubversionPublisher extends Plugin {
       }
       resolverOpt
     },
-    publishTo <<= subversionPublishTo
+
+    publishTo <<= subversionResolver
   )
 }
