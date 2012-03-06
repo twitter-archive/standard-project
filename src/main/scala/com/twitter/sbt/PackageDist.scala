@@ -160,7 +160,7 @@ object PackageDist extends Plugin {
     },
 
     // write a classpath entry to the manifest
-    packageOptions <+= (dependencyClasspath in Compile, mainClass) map { (cp, main) =>
+    packageOptions <+= (dependencyClasspath in Compile, mainClass in Compile) map { (cp, main) =>
       val manifestClasspath = cp.files.map(f => "libs/" + f.getName).mkString(" ")
       // not sure why, but Main-Class needs to be set explicitly here.
       val attrs = Seq(("Class-Path", manifestClasspath)) ++ main.map { ("Main-Class", _) }
@@ -313,9 +313,11 @@ object PackageDist extends Plugin {
       packageDistDir,
       packageDistName,
       packageDistZipPath,
-      packageDistZipName
-    ) map { (_, files, _, dest, distName, zipPath, zipName) =>
+      packageDistZipName,
+      streams
+    ) map { (_, files, _, dest, distName, zipPath, zipName, s) =>
       // build the zip
+      s.log.info("Building %s from %d files.".format(zipName, files.size))
       val zipRebaser = Path.rebase(dest, zipPath)
       val zipFile = dest / zipName
       IO.zip(files.map(f => (f, zipRebaser(f).get)), zipFile)

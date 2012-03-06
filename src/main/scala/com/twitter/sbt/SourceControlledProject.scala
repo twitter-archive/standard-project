@@ -2,6 +2,7 @@ package com.twitter.sbt
 
 import sbt._
 import Keys._
+
 /**
  * various tasks for working with git-based projects
  */
